@@ -1,1 +1,1 @@
-# thetagamma_tLTP
+# Theta-nested Gamma Oscillation-induced tLTP simulation
