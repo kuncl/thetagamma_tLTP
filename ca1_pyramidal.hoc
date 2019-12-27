@@ -1,0 +1,611 @@
+// Cell Template
+// CA1 PyramidalCell 
+
+// Ref 1 . Cutsuridis
+//// Network cell template
+//// PyramidalCell
+//// Geometry: 14 sections + axon
+//// Active properties: from Poirazi et al, Neuron 2003
+//// Adjusted to get more decrementing BPAP
+//// BPG & VCU, 2-1-09
+// Ref 2 . Corey D. Acker & John A. Whi
+//// Roles of IA and morphology in action potential propagation in CA1 pyramidal cell dendrites
+// Ref 3. R. Enoki et al. / Neuroscience Research 48 (2004) 325?333
+// Ref 4. M.Migliore,  J. Comput. Neurosci. 7, 5-15, 1999.
+
+
+begintemplate CA1PyramidalCell
+	/* Distance - Point Mapping Table */
+	// apical[2] (0.9) - 149.45um
+	/* ---------------------------- */
+	public is_art		// WhaT?
+	public init, topol, basic_shape, subsets, geom, biophys
+	public pre_list,  connect2target, stim
+	objref pre_list, stim
+
+	public all,  apical_trunk_list, primary_apical, all_apicals
+	objref all , apical_trunk_list, all_apicals
+	
+	public soma, apical, spine
+	create soma, apical[1], spine
+	
+	public Vrest
+	public locSyn, locSynCord
+	public current_balance
+	
+	
+	public findSegment
+	func findSegment() { local i, findPos, nowPos, prevdist, prevx
+		findPos = $1
+		nowPos= $1 - soma.L
+		for (i=0;i<numApic;i=i+1) {
+			if (nowPos > apical[i].L ) {
+				nowPos = nowPos - apical[i].L
+			} else {
+				print "dist : ", findPos, "um, Sec : apical[",i, "].(", (nowPos / apical[i].L) , ")"
+				break
+			}
+		}
+		return i
+	}
+	public findLength
+	func findLength() { local i, findPos, nowPos, prevdist, prevx
+		findPos = $1
+		nowPos= $1 - soma.L
+		for (i=0;i<numApic;i=i+1) {
+			if (nowPos > apical[i].L ) {
+				nowPos = nowPos - apical[i].L
+			} else {
+				print "dist : ", findPos, "um, Sec : apical[",i, "].(", (nowPos / apical[i].L) , ")"
+				break
+			}
+		}
+		
+		return (nowPos / apical[i].L)
+	}
+
+	obfunc locSynCord() { local flag, dist localobj loc
+		flag = 0
+		dist = $1	
+		
+		forsec all_apicals { 
+			for (x) { 
+				if (flag == 0 && distance(x) >= position) {
+					flag = 1
+					print "Distance ", dist, "um from soma", secname(), "(", x, ")" 
+					loc = new LocPoint(secname(), x, dist)
+					return loc
+				}
+			}
+		}
+
+	}
+	
+	public reloc_syn
+	proc reloc_syn() { local loc_ localobj syn_
+	/* reloc_syn (syn_ as NetCon, loc_ as integer) */
+		syn_ = $o1
+		loc_ = $2
+		
+		if (loc_ > 0 ){
+			{apical[findSegment(loc_)] syn_.syn.loc(findLength(loc_))}
+		} else if (loc_ == 0){
+			soma syn_.syn.loc(0.5)
+		} else (loc_ < 0) {
+			print "Synaptic location must be larger than 0"
+		}
+		print "Inhibition Location was changed to ", loc_, "um from soma"	
+
+	}
+	
+	proc STDP_Params() {
+		calH_gcabar = 0.012	cacainf = 50e-6	cadtaur = 90
+		nmda_tau1 = 21	nmda_tau2 = 4	nmda_gbarca = 0.00001 		   //tau2 : 5 or 6						
+	}
+
+	proc init() {
+		// 1: Initializing Time, 
+		tInit = $1
+		Vrest = -60
+		locSyn = 100		
+		true = 1
+		false = 0
+		numApic = 6
+		
+		STDP_Params() 
+		
+		topol()			
+		subsets()	
+
+		geom()	
+		geom_nseg()	
+		
+		biophys()
+
+		pre_list = new List()
+		
+		synapses()
+		mk_kinase()
+		stims()
+		
+	}
+  
+	proc topol() {
+		soma connect apical[0](0), 1
+	}
+
+	// Subset
+	proc subsets() {	
+		all_apicals = new SectionList()
+		apical[0] all_apicals.subtree()
+
+		apical_trunk_list = new SectionList()
+		apical[0] apical_trunk_list.subtree() 		
+			
+		all = new SectionList()		
+		soma all.append()
+		forsec all_apicals {
+			all.append()
+		}	
+		
+		
+		spine all.append()
+		apical[0] connect spine(0), 0.15873504		// 100um	
+		
+	}
+	
+	// Geometry
+	proc geom() {
+		dscale = 1
+
+		// Soma
+		soma {
+			L = 7.14
+			diam = 7.14
+			nseg = 42
+		}
+	
+		// Apical Dendrite
+		apical[0]  {
+		  L = 585
+		  diam = 3.8 
+		  diam = 1.5
+		  nseg = 150
+		}		
+		
+		spine {	// Anatomical Data from "Anatomical and Electrophysiological Comparison of CA1 Pyramidal Neurons of the Rat and Mouse" (Routh et al., 2009)
+			L = 0.35
+			diam = 0.35
+			nseg = 1
+		}
+
+	}
+
+	external lambda_f
+	proc geom_nseg() { local calc
+		forsec apical_trunk_list { ns = int(L / 5 + 0.5)
+			if (ns==0) {
+				 ns = 1
+			}
+			if ((ns-int(ns/2)*2)==0) {
+				 ns = ns + 1
+			}
+			nseg = ns
+		}
+	}
+
+	//----------------------------------------------------------------
+	//------------------- Biophysical Channels -----------------------
+	public gka_set
+	proc gka_set() {
+		fr_aBeta_soma = $1
+		fr_aBeta_dendrite = $2
+		
+		forsec "soma" {
+			gkabar_kapmig = gkap * fr_aBeta_soma			
+		}
+		
+		forsec all_apicals {
+			if (!ismembrane("kapmig")) {
+				insert kapmig
+			}
+			if (!ismembrane("kadmig")) {
+				insert kadmig
+			}
+			
+			for (x) if (x>0 && x<1) { xdist = distance(x)
+					  if (xdist>dlimit) {
+							// xdist=dlimit
+					  }
+					  if (x!=1) {
+						gkabar_kapmig(x)=0
+						gkabar_kadmig(x)=0
+						
+						if (xdist>dprox) {					
+							gkabar_kadmig(x) = gkad*(1+xdist / dprox) * fr_aBeta_dendrite
+						} else {				
+							gkabar_kapmig(x) = gkap*(1+xdist / dprox) * fr_aBeta_dendrite
+						}
+				  }
+			}
+		}
+	}
+
+	func gcalbar() { 
+		xdist = $1
+		gcalmax = 0.00015
+		return gcalmax
+	}
+
+	proc biophys_passive() {
+		// v_init = Vrest 																//Initial voltage of sections
+		celsius = 35 																//Temperature of slice.
+		
+		/* Global Parameter */
+		Cm = global_cm			/* specific membrane capacitance in uF/cm^2 */		
+		Rm = global_rm		/* specific membrane resistivity in ohm-cm^2 */ 
+
+		Vleak=-66		/* leak reversal -66 in Cs+*/
+		Vleak=Vrest		/* leak reversal normal +*/		
+		
+		print "Inserting passive membrane properties"
+		forall {
+			insert dsca
+				catimerest_dsca = tInit			  
+			insert ds			
+			insert anAP
+
+			insert pas 
+				g_pas=1/(Rm)  
+				Ra=global_ra  
+				e_pas=Vrest 
+				cm=Cm
+		}				
+	}
+	proc biophys_soma() {	
+		forsec "soma" {
+			insert na3n  gbar_na3n=gnabar  sh_na3n = nash
+			insert kdrmig  gkdrbar_kdrmig=gkdr
+			insert kapmig  
+
+			insert borgkm  
+				gkmbar_borgkm = gkm
+				
+				
+			insert hd ghdbar_hd=ghd	vhalfl_hd=-73
+
+			/* Calcium */
+			/* Ca2+-activated K+ channel */
+			insert cagk  gbar_cagk = gahp
+
+			/* Voltage-gated Calcium Channel */
+			insert calH
+			gcalbar_calH = gcalbar(0)
+			
+			insert cad
+		}
+	}
+	proc biophys_apical(){
+		/* reset distance */
+		access soma
+		area(0.5)
+		distance()
+		
+		//  Configure apical trunk
+		forsec all_apicals {
+			/* Sodium channels */
+			insert na3n  gbar_na3n=gnabar   sh_na3n = nash
+
+			/* delayed rectifier channels */
+			insert kdrmig  gkdrbar_kdrmig = gkdr
+
+			/* A-type potassium channels */
+			gka_set(1, 1)			
+			
+			insert hd ghdbar_hd=ghd
+			for (x) if (x>0 && x<1) { xdist = distance(x)
+				ghdbar_hd(x) = ghd*(1 + 3 * xdist/dprox)
+				if (xdist > dprox){
+					vhalfl_hd=-81
+				} else {
+					vhalfl_hd=-73
+				}
+			}
+			
+			/* Calcium current */
+			insert cagk  gbar_cagk= gahp // Ca2+ sensitive K channel
+			
+			for (x) { xdist = distance(x)											
+				insert calH
+				gcalbar_calH(x) = gcalbar(xdist)
+			}			
+		}
+	}
+	proc biophys_spine() {	
+		/* reset distance */
+		access soma
+		area(0.5)
+		distance()
+		
+		forsec "spine" { 
+			insert na3n gbar_na3n = 0.007
+			insert kdrmig gkdrbar_kdrmig = 0.000867
+			insert calH gcalbar_calH =  calH_gcabar	// for 100
+
+			if (!ismembrane("kapmig")) {
+				insert kapmig
+			}
+			if (!ismembrane("kadmig")) {
+				insert kadmig
+			}		
+			for (x) if (x>0 && x<1) { xdist = distance(x)
+					  if (xdist>dlimit) {
+							// xdist=dlimit
+					  }
+					  if (x!=1) {
+						gkabar_kapmig(x)=0
+						gkabar_kadmig(x)=0
+						
+						if (xdist>dprox) {					
+							gkabar_kadmig(x) = 0.012 * fr_aBeta_dendrite
+						} else {				
+							gkabar_kapmig(x) = 0.012 * fr_aBeta_dendrite
+						}
+				  }
+			}
+		}
+	}
+	proc biophys() {
+		// Active Channel Distributions 
+		gnabar=0.025
+		nash = 1
+
+		kdr_div = 10.0/1.24
+		gkdr = gnabar/kdr_div
+			
+		gka = 0.042
+		gkap=gka                /* proximal A-type potassium starting density */
+		gkad=gka               /* distal A-type potassium  starting density */
+
+		dlimit=300              /* cut-off for increase of A-type density */
+		dprox=100               /* distance to switch from proximal to distal type */
+		
+		gkm=0.003 * 0.125
+
+		/* H Channel Distribution along distance */
+		ghd=0.00002 * 0.5
+
+		gahp=5e-4 	
+		gc = 0.00023 
+		
+		global_cm = 1.0
+		global_ra = 200
+		global_rm = 28000
+				
+		biophys_passive()
+		biophys_soma()
+		biophys_apical()
+		biophys_spine()
+		
+		forall {
+			v=Vrest		
+			for (x) {
+
+				if (ismembrane("nax") || ismembrane("na3")|| ismembrane("nas") || ismembrane("hha_old") || ismembrane("hha2")) {
+					ena=55
+				}
+				if (ismembrane("kdr") || ismembrane("kap") || ismembrane("kad") || ismembrane("hha_old") || ismembrane("hha2")) {
+					ek=-77
+				}
+				if (ismembrane("h") || ismembrane("hd")  ) {
+					eh=-30
+				}
+
+				 //Ca2+ rest internal concentration	
+				if (ismembrane("ca_ion")) {
+					insert cad
+				}
+				
+				if(ismembrane("cad") || ismembrane("ca_ion")){			
+					eca = 120
+					ion_style("ca_ion",0,1,0,0,0)
+					vshift_ca = 0
+				}
+			}
+		}      
+		
+	   forall {
+			for (x) {
+			  if (x > 0 && x < 1) { xdist = distance(x) 
+					diam(x)=diam(x)*1.0
+			  }
+			}
+	   }
+
+		current_balance(Vrest)
+	}
+
+	proc current_balance() {
+
+		 // print "Note: This does not account for non-specific ion currents.\n"
+		
+		finitialize($1)
+		forsec all {
+			v = Vrest
+		}
+
+		// fcurrent()
+
+		printf("Balancing each compartment to %d mV\n", $1)
+
+		
+		forall {
+			for (x) {
+				e_pas(x) = 0 
+
+				if (ismembrane("na_ion")) {
+					e_pas(x) = e_pas(x) + ina(x)
+				}				
+				if (ismembrane("k_ion")) {
+					e_pas(x) = e_pas(x) + ik(x)
+				}	
+				if (ismembrane("Ca_ion")) {
+					e_pas(x) = e_pas(x) + iCa(x)
+				}				
+				if (ismembrane("ca_ion")) {
+					e_pas(x) = e_pas(x) + ica(x)
+				}
+				if (ismembrane("hd") ) {
+					e_pas(x) = e_pas(x) + i_hd(x)
+				}
+				
+				e_pas(x) = e_pas(x) / g_pas(x)
+				e_pas(x) = e_pas(x) + v(x) 
+				
+				fcurrent()
+			}
+		}
+		
+		forall if (ismembrane("cad")) {
+			for(x,0) {
+
+					cainf_cad(x) = cacainf	// Rubin
+					taur_cad(x) = cadtaur	// 84/7 Sabatini --> 12 ms
+
+					irest_cad(x)=ica(x)
+			} // (fixed from =-ica minus sign bug)
+		}
+		
+		finitialize()
+	}
+	
+	
+	proc stims () {  localobj stim_
+
+		stim = new List ()		
+		stim.append(stim_)		
+	}
+
+	obfunc connect2target() { localobj nc //$o1 target point process, optional $o2 returned NetCon
+	  soma nc = new NetCon(&v(1), $o1)
+	  nc.threshold = -10
+
+	  if (numarg() == 2) { $o2 = nc } // for backward compatibility
+	  
+	  return nc
+	}
+
+	public EPSCcnt
+	objref EPSCVec, EPSCcnt
+	proc synapses() { localobj syn_	
+		epsp_scaler = 0.5
+		EPSCVec = new Vector()
+		
+		soma EPSCcnt = new EPSCCount(0.5)
+		EPSCcnt.thresh = 10 * 1e-3
+		EPSCcnt.n = 0
+		EPSCcnt.record(EPSCVec)
+		/* E0 - spine  */  spine syn_ = new MyAMPA(0.5)  pre_list.append(syn_)	// 400		CA3 Schaffer collaterals
+		
+			syn_.tau = 8
+			syn_.e = 0
+			syn_.gbar = 0.0003 *epsp_scaler
+			syn_.STDPfactor = 1.2 // 1.2
+			
+			setpointer EPSCcnt.curr, syn_.i
+			
+		/* E1 - spine  */  spine syn_ = new MyNMDA(0.5)  pre_list.append(syn_)	// 400		CA3 Schaffer collaterals
+		
+			syn_.gbarsyn= 0.0005 *epsp_scaler
+			syn_.mg = 0.5
+			syn_.rca = 0.124
+			syn_.revca = 120
+			syn_.camethod = 2
+			syn_.revsyn = 0
+			syn_.tau2 = nmda_tau2
+			syn_.tau1= nmda_tau1
+			syn_.gbarca = nmda_gbarca
+						
+			
+		/* E2*/  soma syn_ = new MyExp2Syn(0.5)  pre_list.append(syn_)	// AMPA		CA1 recurrent input
+			syn_.tau1 = 0.5
+			syn_.tau2 = 3
+			syn_.e = 0
+
+
+		/* I3 GABA-A	Interneuron on soma */ 
+		// Pre = GABA-A Interneuron	
+		// Post = CA1 Pyramidalcell, Soma
+		soma syn_ = new MyExp2Syn(0.5)  pre_list.append(syn_)   // PV Inhibition 
+			syn_.tau1 = 3 	//IPSC Rise Tau
+			syn_.tau2 = 40  //IPSC Decay Tau
+			syn_.e = -75
+
+		/* I4 GABA-A	Interneuron on soma */ 		
+		spine syn_ = new MyExp2Syn(0.5)  pre_list.append(syn_)   // RN Feedforward Inhibition 
+			syn_.tau1 = 3	//IPSC Rise Tau
+			syn_.tau2 = 40	//IPSC Decay Tau
+			syn_.e = -75
+
+
+			
+	}
+
+	public ltpltd
+	objectvar ltpltd
+	proc mk_kinase() {
+		/* LTPLTD Spine  */ spine ltpltd = new LTPLTD(0.5)  // 150 LTPLTD : RUBIN
+		
+
+		ltpltd.pHC = 7.5 * 1e-3 // 1005 * 1e-7 // mM
+		ltpltd.pHC = 4 * 1e-3 // 1005 * 1e-7 // mM
+		ltpltd.pHN = 4
+		ltpltd.pHN = 2
+
+		ltpltd.pHC = 9 * 1e-3 // 1005 * 1e-7 // mM
+		ltpltd.pHN = 3
+
+		ltpltd.theta_v = 2 * 1e-3  // 0.6 mM 
+		ltpltd.sigma_v =  -0.05
+		
+		ltpltd.alpha_w = 0.8
+
+		ltpltd.cp = 5 //  6.8
+		ltpltd.cd = 4 // 5.0
+		
+		ltpltd.low_p = 0.2
+		ltpltd.kp = -0.015
+		
+		
+		// --------------
+		ltpltd.carest = cacainf
+		// --------------
+
+		
+		ltpltd.aHC = 0.6 * 1e-3		  // 80 * 1e-7  // mM 
+		ltpltd.aHN = 3
+
+		ltpltd.theta_b = 0.55
+		ltpltd.sigma_b = -0.02
+
+		ltpltd.theta_d = 2.5
+		ltpltd.sigma_d = -0.01
+		
+		ltpltd.beta_w = 0.6 // 4 // 0.52
+		
+		ltpltd.low_d = 0.01
+		ltpltd.kd = -0.0015
+		
+		
+		ltpltd.tInit = tInit		
+		
+	   setpointer pre_list.o[0].STDPweight, ltpltd.Avg_W	
+		
+	}
+
+	func is_art() { return 0 }
+
+endtemplate CA1PyramidalCell
+
+
+

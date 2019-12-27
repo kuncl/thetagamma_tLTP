@@ -1,0 +1,94 @@
+objref Integ_grp, vec_Integ_Cond, vec_Integ_EPSP
+proc Integ_GUI() {
+	Integ_grp = new Graph()
+	Integ_grp.exec_menu("Keep Lines")
+}
+
+proc Integ_Run() {
+	bCA1Burst = false
+	bStdpFig = false	
+	bSTDPoutputFig = false
+	
+	if ($1 == true) {
+		PAIR_INTERVAL = 10  
+		RunSTDP()		
+	} else {
+		PAIR_INTERVAL = -10  
+		RunSTDP()
+	}	
+	
+	vec_Integ_Cond.append($2)	
+	vec_Integ_EPSP.append(STDP_EPSC_Change)
+	
+	vec_Integ_EPSP.mark(Integ_grp, vec_Integ_Cond, "O", 4 , 2, 1)
+	vec_Integ_EPSP.line(Integ_grp, vec_Integ_Cond, 1 , 2)
+}
+
+proc IntegWeight() { local i, color_code localobj strpath
+	// default = delay_BC_CA1
+	Integ_GUI()
+	
+	SIW_def_weight = weight_BC_CA1
+	vec_Integ_Cond = new Vector()
+	vec_Integ_EPSP = new Vector()	
+	
+	for (i = 0.00; i <=0.03 ; i =i + 0.01) { // 0, 5, 10, 15, 20, 25, 30
+		IntegWeight_body($1, i)
+	}
+	
+	strpath= new myString()
+	if ($1 == true) {
+		strpath.sprintf("output\\STDP.Weight\\%d.STDP.weight.integ.pre.10.post.eps",Simul_ID)
+	} else {
+		strpath.sprintf("output\\STDP.Weight\\%d.STDP.weight.integ.post.10.pre.eps",Simul_ID)	
+	}
+	
+	Integ_grp.printfile(strpath.s)
+}
+
+
+proc IntegWeight_body() { local color_code1
+	weight_BC_CA1 = $2
+
+	Integ_Run($1, weight_BC_CA1 * 1e3)	
+	// SIW_out($2)
+	
+	Integ_grp.size(0, 30, -100, 100)
+	weight_BC_CA1 = SIW_def_weight
+}
+
+
+proc IntegLocation() {	 local i, color_code localobj strpath  // $1 : true / false -> pre-10-post
+	Integ_GUI()
+	
+	SIL_def_inh_loc = 0	// soma
+	vec_Integ_Cond = new Vector()
+	vec_Integ_EPSP = new Vector()
+	
+	for (i = 0; i < 6; i =i +1) {
+		color_code  = 1
+		IntegLocation_body($1, i)
+
+	}
+	
+	strpath= new myString()
+	if ($1 == true) {
+		strpath.sprintf("output\\STDP.location\\%d.STDP.location.integ.pre.10.post.eps",Simul_ID)
+	} else {
+		strpath.sprintf("output\\STDP.location\\%d.STDP.location.integ.post.10.pre.eps",Simul_ID)	
+	}
+	
+	
+	Integ_grp.printfile(strpath.s)
+	
+}
+
+proc IntegLocation_body() { local color_code	// $1 : Pre - post / Post - pre $2 : $3 : Color Code
+	SIL_setLocation($2)
+
+	Integ_Run($1, SIL_locCode)
+	// SIL_out($2)
+	
+	Integ_grp.size(0, 600, -100, 100)
+	SIL_setLocation(SIL_def_inh_loc) 
+}

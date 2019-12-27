@@ -1,0 +1,345 @@
+// ===============================================================================
+// Title : Hippocampal Network Framework
+// Author : Hyun Jae, Jang
+// Create Date : 2013. 08. 31
+// ===============================================================================
+
+// cvode_active(1)
+{load_file("./Libs/common.hoc")}
+
+
+/************************************
+		Initialize Simulation
+*************************************/
+mkdir("Figures")
+
+
+proc updateSimulID() { localobj SimulCodeFp
+	SimulCodeFp = new File()
+	Simul_ID = 0
+	if (SimulCodeFp.ropen("SimulFootPrint.dat") == 1) {
+		Simul_ID = SimulCodeFp.scanvar()+1
+	}
+	SimulCodeFp.close()
+
+	SimulCodeFp = new File()
+	if (SimulCodeFp.wopen("SimulFootPrint.dat") == 1) {
+		SimulCodeFp.printf("%d",Simul_ID)
+	}
+	SimulCodeFp.close()
+}
+updateSimulID()
+print "Sys) Simulation ID : #", Simul_ID
+
+/************************************
+	   Define Cell and Network
+*************************************/
+
+load_file("InitNetwork.hoc")
+
+
+/************************************
+	   Initializing Sequence
+*************************************/
+proc custominit() { local i
+	for (i=0;i<cells.count();i+=1){
+		cells.o(i).current_balance(cells.o(i).Vrest)
+		// print cells.o(i), " Vrest = ", cells.o(i).Vrest
+	}
+}
+proc init() {
+	dt = 0.1
+	celsius = 35
+
+    finitialize(v_init)									// Total initilization of cells 
+	custominit()										// Initialization of each cell	
+	finitialize()
+	fcurrent()											// Current initialization
+	frecord_init()										// Initialization for recording
+	
+	for (i=0;i<graphList[0].count();i+=1){
+		graphList[0].o(i).size(0, tstop, graphList[0].o(i).size(3),graphList[0].o(i).size(4))
+	}
+}
+proc advance() {
+    fadvance()
+}
+proc my_run() {		
+	adjust_graph()
+	stdinit()
+
+	run()
+}
+
+load_file("Menu_Common.hoc")
+
+proc play_vector() {
+	$o1.play(&$o2.amp,dt)
+	print "Play Vector Called at root", $o1, $o2
+}
+
+
+
+objref stim
+objref cell
+
+// ---------------------------------
+//  f-I Curve Export
+// ---------------------------------
+// cell = cells.o(iRN)
+// objref vv
+// vv = new Vector()
+// vv.record(&cell.soma.v(0.5))
+
+// cell.soma stim = new IClamp(0.5)
+// stim.del = 100
+// stim.dur = 800
+// stim.amp = 0
+
+// tstop = 1000
+// objref tv, fp
+// tv = new Vector()
+// tv.indgen(0,tstop, dt)
+// fp = new File()
+// strdef path
+// for (idxcurrent = 0;idxcurrent<=200;idxcurrent=idxcurrent+20){
+// 	stim.amp = idxcurrent/1e3
+// 	my_run()
+
+// 	sprint(path,"./exports/RN_fi_%03dpA.dat",idxcurrent)
+// 	fp.wopen(path)
+// 	vv.printf(fp,"%f\n")
+// 	fp.close()
+// }
+// ---------------------------------------
+
+// ---------------------------------------
+// Synapse Test
+// ---------------------------------------
+// objref cell_pre, cell_post
+// objref vv
+// vv = new Vector()
+// cell_pre = cells.o(iSST)
+// cell_post = cells.o(iRN)
+// cell_pre.soma stim = new IClamp(0.5)
+// stim.del = 200
+// stim.dur = 2
+// stim.amp = 1
+// tstop = 400
+// vv.record(&cell_post.soma.v(0.5))
+
+// objref g3
+// g3 = new Graph()
+// g3.addvar("Syn I", &cells.o(iCA1).pre_list.o(0).i)
+// graphList[0].append(g3)
+
+// my_run()
+// print vv.max() - vv.min()
+
+
+// ---------------------------------------
+mornitor()
+//Theta oscillation 
+simulation_duration = 1000
+simulation_delay = 500
+tstop = simulation_delay +  simulation_duration
+
+cells.o(iCA1).soma stim = new SinOsc(0.5)
+stim.del = simulation_delay
+stim.dur = simulation_duration
+stim.freq = 5
+stim.isinbar = 0.025
+stim.sinphase = -90
+
+stim.eramp = 0
+stim.grampbar = 0
+stim.ramppos = 0
+
+stim.bias = 0 
+stim.noise = 0
+
+// STDP Test
+objref oStdpPreStim
+objref oStdpPostStim
+	
+cells.o(iCA3).soma oStdpPreStim = new IClampISI(0.5)
+oStdpPreStim.del = 525
+oStdpPreStim.dur = 2
+oStdpPreStim.amp = 0.3
+oStdpPreStim.interval = 200 
+oStdpPreStim.num = 10 *4
+
+
+cells.o(iCA1).soma oStdpPostStim = new IClampISI(0.5)
+oStdpPostStim.del = 0
+oStdpPostStim.dur = 1
+oStdpPostStim.amp = 0
+oStdpPostStim.interval = 200
+oStdpPostStim.num = 0
+
+objref gw
+cells.o(iCA1).soma gw = new IClampNoise(0.5)
+gw.del = 0
+gw.dur = tstop
+gw.std = 0.05
+gw.seed(100)
+
+objref apc1
+cells.o(iCA1).soma apc1 = new APCount(0.5)
+apc1.thresh = 0
+
+objref vv
+vv = new Vector()
+apc1.record(vv)
+
+objref apc2
+cells.o(iPV).soma apc2 = new APCount(0.5)
+apc2.thresh = 0
+
+objref apc3
+cells.o(iSST).soma apc3 = new APCount(0.5)
+apc3.thresh = 0
+
+objref apc4
+cells.o(iCA3).soma apc4 = new APCount(0.5)
+apc4.thresh = 0
+
+objref vv_ca3
+vv_ca3 = new Vector()
+apc4.record(vv_ca3)
+
+objref apc5
+cells.o(iRN).soma apc5 = new APCount(0.5)
+apc5.thresh = 0
+
+objref v1, v2, v3, v4, v5, v6, v7, v8
+v1 = new Vector()
+v1.record(&cells.o(iCA3).soma.v(0.5))
+v2 = new Vector()
+v2.record(&cells.o(iCA1).soma.v(0.5))
+v3 = new Vector()
+v3.record(&cells.o(iPV).soma.v(0.5))
+v4 = new Vector()
+v4.record(&cells.o(iSST).soma.v(0.5))
+v5 = new Vector()
+v5.record(&cells.o(iRN).soma.v(0.5))
+v6 = new Vector()
+v6.record(&cells.o(iCA1).pre_list.o(0).i)
+v7 = new Vector()
+v7.record(&cells.o(iCA1).ltpltd.Avg_W)
+v8 = new Vector()
+v8.record(&cells.o(iCA1).spine.cai)
+
+cells.o(iCA1).ltpltd.pHC = 4 *1e-3
+cells.o(iCA1).ltpltd.pHN = 4
+
+objref fp, s
+s = new myString()
+
+if (unix_mac_pc() == 3) {
+s.sprintf("mkdir .\\data\\Control\\pool\\")
+system(s.s)
+}else {
+
+s.sprintf("./data/Control/pool/")
+mkdir(s.s)
+
+}
+
+
+
+my_run()
+
+fp = new File()
+s.sprintf("./data/Control/pool/Rec_CA3.dat")
+fp.wopen(s.s)
+v1.printf(fp, "%f\n")
+fp.close()
+s.sprintf("./data/Control/pool/Rec_CA1.dat")
+fp.wopen(s.s)
+v2.printf(fp, "%f\n")
+fp.close()
+fp = new File()
+s.sprintf("./data/Control/pool/Rec_PV.dat")
+fp.wopen(s.s)
+v3.printf(fp, "%f\n")
+fp.close()
+fp = new File()
+s.sprintf("./data/Control/pool/Rec_SST.dat")
+fp.wopen(s.s)
+v4.printf(fp, "%f\n")
+fp.close()
+fp = new File()
+s.sprintf("./data/Control/pool/Rec_RN.dat")
+fp.wopen(s.s)
+v5.printf(fp, "%f\n")
+fp.close()
+fp = new File()
+s.sprintf("./data/Control/pool/Rec_CA1_EPSC.dat")
+fp.wopen(s.s)
+v6.printf(fp, "%f\n")
+fp.close()
+fp = new File()
+s.sprintf("./data/Control/pool/Rec_CA1_dW.dat")
+fp.wopen(s.s)
+v7.printf(fp, "%f\n")
+fp.close()
+fp = new File()
+s.sprintf("./data/Control/pool/Rec_CA1_CAI.dat")
+fp.wopen(s.s)
+v8.printf(fp, "%f\n")
+fp.close()
+
+nclist.o(inc_CA1_SST).weight = 0
+my_run()
+
+s = new myString()
+
+if (unix_mac_pc() == 3) {
+	s.sprintf("mkdir .\\data\\NoSST\\pool\\")
+	system(s.s)
+}else {
+	s.sprintf("./data/NoSST/pool/")
+	lib.mkdir(s.s)
+}
+
+objref fp 
+fp = new File()
+s.sprintf("./data/NoSST/pool/Rec_CA3.dat")
+fp.wopen(s.s)
+v1.printf(fp, "%f\n")
+fp.close()
+s.sprintf("./data/NoSST/pool/Rec_CA1.dat")
+fp.wopen(s.s)
+v2.printf(fp, "%f\n")
+fp.close()
+fp = new File()
+s.sprintf("./data/NoSST/pool/Rec_PV.dat")
+fp.wopen(s.s)
+v3.printf(fp, "%f\n")
+fp.close()
+fp = new File()
+s.sprintf("./data/NoSST/pool/Rec_SST.dat")
+fp.wopen(s.s)
+v4.printf(fp, "%f\n")
+fp.close()
+fp = new File()
+s.sprintf("./data/NoSST/pool/Rec_RN.dat")
+fp.wopen(s.s)
+v5.printf(fp, "%f\n")
+fp.close()
+fp = new File()
+s.sprintf("./data/NoSST/pool/Rec_CA1_EPSC.dat")
+fp.wopen(s.s)
+v6.printf(fp, "%f\n")
+fp.close()
+fp = new File()
+s.sprintf("./data/NoSST/pool/Rec_CA1_dW.dat")
+fp.wopen(s.s)
+v7.printf(fp, "%f\n")
+fp.close()
+fp = new File()
+s.sprintf("./data/NoSST/pool/Rec_CA1_CAI.dat")
+fp.wopen(s.s)
+v8.printf(fp, "%f\n")
+fp.close()

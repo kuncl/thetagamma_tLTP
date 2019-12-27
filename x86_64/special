@@ -1,0 +1,13 @@
+#!/bin/sh
+if test "x${NRNHOME}" = "x" ; then
+	NRNHOME="/usr/local/nrn"
+fi
+if test "x${NRNBIN}" = "x" ; then
+	NRNBIN="/usr/local/nrn/x86_64/bin/"
+fi
+if test "" = "yes" ; then
+	NRNIV="${NRNBIN}nrniv.app/Contents/MacOS/nrniv"
+else
+	NRNIV="${NRNBIN}nrniv"
+fi
+"${NRNIV}" -dll "/home3/hjang/AD_OPTO_GAMMA/Evolution_Algorithm_Fit/neuron_code_tLTP_test_rev1/mod/x86_64/.libs/libnrnmech.so" "$@"

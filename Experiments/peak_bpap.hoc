@@ -1,0 +1,170 @@
+
+
+objref  b,c, distrx, distry, cdistry, p, peak_bpap_stim
+
+proc peak_bpap () {
+	// tstop = 410
+	P_NUM = 0
+	peak_bpap_runm()
+}
+
+
+
+objref peak_file, peak_stim1, peak_stim2
+proc peak_bpap_runm() { local graphMethod	
+	gPeakBPAP = new_graph(0, 100)
+	add_label(gPeakBPAP, " peak AP", 0.4,0.8)
+	grpExec(gPeakBPAP, "10% Zoom out")
+	grpExec(gPeakBPAP, "Keep Lines")	
+	
+	graphMethod = false
+	makeIClamp(CA1PyramidalCell[0], STIM_START, CA1_STIM_DUR, CA1_STIM , peak_stim1)
+	// makeIClamp(BasketCell[0], STIM_START, 2, 1.5, peak_stim2)	
+
+
+	peak_bpap_runp(3, graphMethod)
+
+	
+	// blockGABA	= false
+	// init_run()
+	// adjust_graph()
+	// run()
+	// peak_bpap_runp(2, graphMethod)		
+	
+	
+	get_graph(gPeakBPAP).size (0, 600, 0, 100)
+}
+
+proc peak_bpap_stdp() { local graphMethod	
+	gPeakBPAP = new_graph(0, 100)
+	gPeakTrace = new_graph(-80, 50) 
+	gPeakCalcium = new_graph(0, 300) 
+
+	add_plot(gPeakTrace, "CTR", "CA1PyramidalCell[0].soma.v(0.5)", 3,2)
+	// add_plot(gPeakTrace, "CTR-150um", "CA1PyramidalCell[0].apical[2].v(0.9)", 3,5)
+
+	add_plot(gPeakCalcium, "CTR", "CA1PyramidalCell[0].ltpltd.xspine * 1e6" , 3 , 2)
+	get_graph(gPeakTrace).exec_menu("Keep Lines")
+	get_graph(gPeakCalcium).exec_menu("Keep Lines")
+	
+	
+	add_label(gPeakBPAP, " peak AP", 0.4,0.8)
+	grpExec(gPeakBPAP, "10% Zoom out")
+	grpExec(gPeakBPAP, "Keep Lines")
+	
+	graphMethod = false   //2e
+	// PAIR_INTERVAL = 10
+	
+	// CA1_STIM = 1.0
+	// CA1_STIM = 1.2
+
+	
+	blockGABA	= true		
+
+	RunSTDP()
+	get_graph(gPeakBPAP).beginline("Control",3 ,2  )
+	peak_bpap_runp(3, graphMethod)	
+	peakCTR2 = CA1PyramidalCell[0].apical[2].vmax_ds(0.9)-CA1PyramidalCell[0].Vrest
+	peakCTR = CA1PyramidalCell[0].soma.vmax_ds(0.5)-CA1PyramidalCell[0].Vrest
+	
+	
+	
+	
+	
+	
+	add_plot(gPeakTrace, "INH", "CA1PyramidalCell[0].soma.v(0.5)", 2,2)
+	// add_plot(gPeakTrace, "INH-150um", "CA1PyramidalCell[0].apical[2].v(0.9)", 2,5)
+	add_plot(gPeakCalcium, "INH", "CA1PyramidalCell[0].ltpltd.xspine * 1e6" , 2 , 2)
+	blockGABA	= false	
+	// CA1_STIM = 1.0
+	// CA1_STIM = 1.0
+	// CA1_STIM = 2.0
+	// CA1_STIM = 1.2
+
+	// tstop = 1200
+	RunSTDP()
+	get_graph(gPeakBPAP).beginline("WithGABA",2,2)
+	peak_bpap_runp(2, graphMethod)		
+
+	peakINH2 = CA1PyramidalCell[0].apical[2].vmax_ds(0.9)-CA1PyramidalCell[0].Vrest	
+	peakINH = CA1PyramidalCell[0].soma.vmax_ds(0.5)-CA1PyramidalCell[0].Vrest	
+	
+	print "Peak BPAP amplitude (mV) @ Soma 150um = ", (peakCTR - peakINH) , "mV"
+	print "Peak BPAP amplitude (mV) @ Apical 150um = ", (peakCTR2 - peakINH2) , "mV"
+
+	get_graph(gPeakTrace).exec_menu("View = plot") 
+		
+	peak_bpap_stim = nil
+	
+	get_graph(gPeakBPAP).size (0, 600, grpMaxList.x[gPeakBPAP], grpMinList.x[gPeakBPAP])
+}
+
+
+proc peak_bpap_runp() {
+	distrx=new Vector()
+	distry=new Vector()
+	
+	distrx.append(0) 
+	if ($2 == false) {
+		distry.append( CA1PyramidalCell[0].soma.vmax_ds(0.5)-CA1PyramidalCell[0].Vrest)
+	} else {
+		distry.append( CA1PyramidalCell[0].soma.PeakV_anAP(0.5)-CA1PyramidalCell[0].soma.MinV_anAP(0.5))			
+		// print CA1PyramidalCell[0].soma.PeakV_anAP(0.5)-CA1PyramidalCell[0].soma.MinV_anAP(0.5), "mV"
+	}
+	forsec CA1PyramidalCell[0].apical_trunk_list {
+		for (x) if (x>0 && x<1) {
+			if (diam>=0.) {
+				distrx.append(distance(x)) 
+				if ($2 == false) {
+					distry.append(vmax_ds(x)-CA1PyramidalCell[0].Vrest)			
+				} else {
+					distry.append( PeakV_anAP(x)-MinV_anAP(x) )
+				}
+			}
+		}
+	}
+	distry.line(get_graph(gPeakBPAP),distrx,$1,2)
+	
+	// peak_file = new File()
+	// peak_file.wopen("peak_bpap.dat")
+	// for i=0,distry.size()-1 {
+		// peak_file.printf("%g %g\n", distrx.x(i), distry.x(i))
+	// }
+	// peak_file.close()
+}
+
+proc peak_bpap_runi() {
+	c = new Graph()
+	c.size(0,500,0,100)
+	c.xaxis(1)
+	c.exec_menu("10% Zoom out")
+	c.color(1)
+	c.label(0.4,0.8," peak AP")
+
+	distrx=new Vector()
+	distry=new Vector()
+	
+	distrx.append(0) 
+	distry.append( CA1PyramidalCell[0].Vrest - CA1PyramidalCell[0].soma.vmin_ds(0.5))			
+	forsec CA1PyramidalCell[0].apical_trunk_list {
+		for (x) if (x>0 && x<1) {
+			if (diam>=0.) {
+			distrx.append(distance(x)) 
+			distry.append(CA1PyramidalCell[0].Vrest - vmin_ds(x))			
+			}
+			}
+	}
+	// distry.mark(c,distrx,"O",3,3,2)
+	distry.line(c,distrx,3,2)
+
+	
+	c.flush()
+	doNotify()
+	
+	peak_file = new File()
+	peak_file.wopen("peak_bpap.dat")
+	for i=0,distry.size()-1 {
+		peak_file.printf("%g %g\n", distrx.x(i), distry.x(i))
+	}
+	peak_file.close()
+}

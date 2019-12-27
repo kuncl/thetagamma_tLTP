@@ -1,0 +1,122 @@
+objref SBFPg1, SBFPg2, SBFPg3, SBFPg4, SBFPg5
+objref SBFPv1, SBFPv2, SBFPv3, SBFPv4, SBFPv5
+objref SBFPvl, SBFPgl
+
+// STDP IPSP Delay º° Â÷ÀÌSIW
+proc SBFP_init(){ local i localobj strpath, burstfreqs
+	SBFPvl = new List()
+	SBFPgl = new List()
+	
+	
+	
+	weight_BC_CA1 = 0.020
+	CA1PyramidalCell[0].apical[4] nclist.o(iBC_CA1_nc).syn.loc(0.63816793) // 400 um+
+	
+	
+	SBFP_def_freq = CA1_BURST_FREQ
+	
+	SBFP_adjust(100)
+
+	
+	SBFP_GUI()
+	blockGABA = false
+	bUseFeedforward = true
+	bUseFeedback = false
+	bCA1Burst = false
+
+	PAIR_INTERVAL = 10  RunSTDP()
+	
+	SBFP_GUI()
+	blockGABA = false
+	bUseFeedforward = true
+	bUseFeedback = false
+	bCA1Burst = true
+
+	PAIR_INTERVAL = 10  RunSTDP()
+
+	bCA1Burst = false	
+	SBFP_restore()
+	
+	
+} 
+proc SBFP_adjust() {
+	CA1_BURST_FREQ = $1
+}
+proc SBFP_restore() {
+	CA1_BURST_FREQ = SBFP_def_freq	
+}
+
+
+proc SBFP_GUI() { 
+	// Postsynaptic Membrane Trace
+	SBFPv1 = new VBox(2)
+	SBFPv1.intercept(1)
+	SBFPg1 = new Graph()
+	SBFPg1.size(1100,1200,-80,40)
+	SBFPg1.addexpr("", "CA1PyramidalCell[0].soma.v(0.5)", 1, 2)
+	SBFPv1.intercept(0)
+	SBFPv1.map("1", 100, 300, 200, 60)
+	
+	// Postsynaptic Calcium Trace
+	SBFPv2 = new VBox(2)
+	SBFPv2.intercept(1)
+	SBFPg2 = new Graph()
+	SBFPg2.size(1100, 1200, 0, 450)
+	SBFPg2.addexpr( "", "CA1PyramidalCell[0].ltpltd.xspine  * 1e6" , 1 , 3)
+	SBFPg2.addexpr( "" , "CA1PyramidalCell[0].ltpltd.pHC  * 1e6 ", 1, 6)
+	SBFPg2.addexpr( "" , "CA1PyramidalCell[0].ltpltd.aHC  * 1e6", 1, 6)
+	SBFPg2.addexpr( "" , "CA1PyramidalCell[0].ltpltd.theta_v  * 1e6", 1, 6)
+	SBFPv2.intercept(0)
+	SBFPv2.map("1", 100, 300 + 80 + 80, 200, 115)
+	
+	// Postsynaptic Depression Agent
+	SBFPv3= new VBox(2)
+	SBFPv3.intercept(1)
+	SBFPg3 = new Graph()
+	SBFPg3.size(1100, 1200, 0, 3.5)
+	SBFPg3.addexpr( "", "CA1PyramidalCell[0].ltpltd.V", 2, 2)
+	SBFPg3.addexpr( "", "CA1PyramidalCell[0].ltpltd.A", 3, 2)
+	SBFPg3.addexpr( "", "CA1PyramidalCell[0].ltpltd.B", 5, 2)
+	SBFPg3.addexpr( "", "CA1PyramidalCell[0].ltpltd.theta_b", 3, 6)
+	SBFPg3.addexpr( "", "CA1PyramidalCell[0].ltpltd.theta_d", 5, 6)
+	SBFPv3.intercept(0)
+	SBFPv3.map("1", 100, 300 + 80 + 80 + 160 + 110, 200, 145)
+	
+	// Postsynaptic Depression Agent
+	SBFPv4= new VBox(2)
+	SBFPv4.intercept(1)
+	SBFPg4 = new Graph()
+	SBFPg4.size(0, tstop, 0, 0.2)
+	SBFPg4.addexpr( "", "CA1PyramidalCell[0].ltpltd.P", 2, 2)
+	SBFPg4.addexpr( "", "CA1PyramidalCell[0].ltpltd.D", 3, 2)
+	SBFPv4.intercept(0)
+	SBFPv4.map("1", 380, 300 , 200, 160)
+		
+	// Postsynaptic Depression Agent
+	SBFPv5= new VBox(2)
+	SBFPv5.intercept(1)
+	SBFPg5 = new Graph()
+	SBFPg5.size(0, tstop, -1, 1)
+	SBFPg5.addexpr( "", "CA1PyramidalCell[0].ltpltd.W", 1, 2)
+	SBFPv5.intercept(0)
+	SBFPv5.map("1", 380, 300 +160 + 110 , 200, 160)
+
+	SBFPvl.append(SBFPv1)
+	SBFPvl.append(SBFPv2)
+	SBFPvl.append(SBFPv3)
+	SBFPvl.append(SBFPv4)
+	SBFPvl.append(SBFPv5)
+
+	SBFPgl.append(SBFPg1)
+	SBFPgl.append(SBFPg2)
+	SBFPgl.append(SBFPg3)
+	SBFPgl.append(SBFPg4)
+	SBFPgl.append(SBFPg5)
+	
+	
+	graphList[0].append(SBFPg1)
+	graphList[0].append(SBFPg2)
+	graphList[0].append(SBFPg3)
+	graphList[0].append(SBFPg4)
+	graphList[0].append(SBFPg5)
+}

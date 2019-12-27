@@ -1,0 +1,127 @@
+begintemplate AnalysisPSP
+	objref oPrecell, oPostcell	
+	objref oStim, oAnIPSP	
+	objref oRecVecT, oRecVecV, oRecVecI
+	
+	objref nil
+
+	public init, exec, setEPSP, setIPSP
+	public ampV
+	
+	strdef sTitle
+	objref oVh
+
+	// AnalysisPSP ( oPrecell, oPostcell, oStim.amp, oStim.del , oStim.dur, burst_time, burst_num)
+	proc init () {
+		true = 1
+		false = 0	
+	
+		oPrecell = $o1
+		oPostcell = $o2
+		
+		oPrecell.soma oStim = new IClampISIBurst(0.5)
+		oStim.amp = $3
+		oStim.del = $4
+		oStim.single_dur = $5
+		oStim.num = 1
+		oStim.burst_num = 1
+		oStim.burst_isi = 1000 / 1
+
+		if (numarg() > 5 ) {
+			oStim.burst_isi = 1000 / $6
+		}
+		
+		if (numarg() > 6 ) {			
+			oStim.burst_num = $7
+		}		
+		
+		oPostcell.soma { 
+			insert anPSP
+			vrest_anPSP = oPostcell.Vrest
+		}	
+		
+		oRecVecT = new Vector()
+		oRecVecT.record(&t)
+		oRecVecV = new Vector()
+		oRecVecV.record(&oPostcell.soma.v(0.5))		
+		oRecVecI = new Vector()
+		// oRecVecI.record(&CA1PyramidalCell[0].pre_list.o[5].i)
+
+		
+		tstop = $4 + $5 + 100
+		
+		setEPSP()
+	}
+	
+	proc setEPSP() {
+		sprint(sTitle ,"EPSP")
+		oPostcell.soma { 
+			vdir_anPSP = 1
+		}
+		bEPSP = true
+	}	
+	
+	proc execEPSP() { //local peakV, restV, ampV, v10, v90, vh
+		peakV = oRecVecV.max()
+		restV = oPostcell.Vrest
+		ampV = (peakV - restV)
+		v10 = restV + ampV * 0.1
+		v90 = restV + ampV * 0.9
+		vh = restV + ampV * 0.5
+		
+		oVh = new Vector()
+
+		
+		t10 = oRecVecT.x(oRecVecV.indwhere( ">=", v10))
+		t90 =  oRecVecT.x(oRecVecV.indwhere( ">=", v90))
+			
+		oVh = oRecVecV.c.indvwhere(oRecVecV, ">=" , vh)
+	}
+	proc setIPSP() {
+		sprint(sTitle ,"IPSP")
+		oPostcell.soma { 
+			vdir_anPSP = 2
+		}	
+		bEPSP = false
+	}
+	
+	proc execIPSP() { //local peakV, restV, ampV, v10, v90, vh
+		peakV = oRecVecV.min()
+		restV = oPostcell.Vrest
+		ampV = (restV - peakV)
+		v10 = restV - ampV * 0.1
+		v90 = restV - ampV * 0.9
+		vh = restV - ampV * 0.5
+		
+		oVh = new Vector()
+		
+		t10 = oRecVecT.x(oRecVecV.indwhere( "<=", v10))
+		t90 =  oRecVecT.x(oRecVecV.indwhere( "<=", v90))
+			
+		oVh = oRecVecV.c.indvwhere(oRecVecV, "<=" , vh)
+	}
+
+	proc exec() {
+		print "bEPSP",bEPSP, true
+		if (bEPSP == true) {
+			execEPSP() 
+		} else {
+			execIPSP() 
+		}
+		print "*** Result of Analysis ", sTitle, " ***"
+		print "* Amplitude of ", sTitle, " \t= ", ampV	, "mV"	
+		// print "* 10% time \t\t= ", t10, "ms 90% time = ", t90, "ms"
+		print "* 10-90% rise time  \t= ", (t90 - t10)	, "ms"	
+		print "* Half width \t\t= ", (oRecVecT.x(oVh.x(oVh.size()-1)) - oRecVecT.x(oVh.x(0))), "ms"
+		print "****************************"
+		unload()
+	}
+	
+	proc unload() {
+		oRecVecT = nil
+		oRecVecV = nil
+		oStim = nil
+		oAnIPSP = nil
+	}
+
+endtemplate AnalysisPSP

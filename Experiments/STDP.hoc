@@ -1,0 +1,571 @@
+// Parametrs for System
+iStdpRunSimple = false
+
+strdef sStdpTitle
+objref mStdpMenu, mStdpAgentsMenu
+objref lStdpIntervals
+bStdpInit = false
+bStdpFig = true
+objref oStdpPre, oStdpPost, oStdpPreStim, oStdpPostStim
+oStdpPre = CA3PyramidalCell[0]
+oStdpPost = CA1PyramidalCell[0]
+bSTDPoutputFig = true
+
+objref oStdpPreFStim, oStdpPreLStim
+objref oStdpPWM
+proc STDP_Init() { 
+	
+	// Stimulation for STDP
+	oStdpPre.soma oStdpPreStim = new IClampISI(0.5)
+	oStdpPreStim.del = T_STARTTIME
+	oStdpPreStim.dur = CA3_DUR
+	oStdpPreStim.amp = 0
+	oStdpPreStim.interval = P_INTERVAL
+	oStdpPreStim.num = P_NUM
+	
+	// Base of EPSP
+	oStdpPre.soma oStdpPreFStim = new IClamp(0.5)
+	oStdpPreFStim.del = T_STARTTIME 
+	oStdpPreFStim.dur = CA3_DUR
+	oStdpPreFStim.amp = CA3_STIM 
+	
+	// Verification of EPSP
+	oStdpPre.soma oStdpPreLStim = new IClamp(0.5)
+	oStdpPreLStim.del = T_STARTTIME + P_INTERVAL * (P_NUM+1)
+	oStdpPreLStim.dur = CA3_DUR
+	oStdpPreLStim.amp = CA3_STIM	
+	
+	
+	oStdpPost.soma oStdpPostStim = new IClampISIBurst(0.5)
+	// oStdpPost.soma oStdpPostStim = new IClampISI(0.5)
+	oStdpPostStim.single_dur = 1
+	oStdpPostStim.amp = 0
+	oStdpPostStim.isi = P_INTERVAL
+	oStdpPostStim.num = P_NUM
+
+	
+	
+	
+	if (bStdpFig == true) {
+		
+		oStdpPWM = new PWManager()
+		
+		STDP_figures()
+		
+		if (P_NUM > 1) {
+			oStdpPWM.hide(oStdpPWM.count()-1)
+		}
+		
+	}
+	
+
+	bStdpInit = true
+}
+
+proc STDP_Fig() {
+	init_run()
+	//  STDP_Fig(CA1_STIM,  STIM_START+PAIR_INTERVAL, CA3_STIM, STIM_START)
+	if (bStdpInit == false) {
+		STDP_Init()
+	}
+	
+	oStdpPostStim.amp = $1
+	oStdpPostStim.del = T_STARTTIME + $2 + P_INTERVAL
+	oStdpPostStim.single_dur = CA1_STIM_DUR
+	oStdpPostStim.burst_isi = 1000 / CA1_BURST_FREQ
+	oStdpPostStim.burst_num = CA1_BURST_NUM
+	
+	oStdpPreStim.amp = $3
+	oStdpPreStim.del = T_STARTTIME + $4 + P_INTERVAL 
+	oStdpPreStim.dur = CA3_DUR
+	if (PAIR_INTERVAL <= 0 && bCA1Burst == true) {
+		oStdpPreStim.del = T_STARTTIME + P_INTERVAL + $4 + (1000 / CA1_BURST_FREQ * (CA1_BURST_NUM-1))
+	}
+	
+	if (CA3_STIM > 0 ) {	
+		// Code for Burst EPSP
+		// CA3PyramidalCell[0].stim.o(0).num =5
+		// CA3PyramidalCell[0].stim.o(0).interval = 1000/100
+		// CA3_STIM = 2
+	}		
+	// START_TRACE()
+}
+
+STDP_Menu_Agent = false // LTP agents : True , LTD : False
+proc STDP_Menu() {	
+	mStdpMenu = new VBox()
+    mStdpMenu.intercept(1)
+		xpanel("Buttons")	
+			xlabel("STDP Menu")
+			xmenu("Experiments")
+				xbutton("Post-60-Pre", "PAIR_INTERVAL=-60  RunSTDP()")
+				xbutton("Post-10-Pre", "PAIR_INTERVAL=-10  RunSTDP()")
+				xbutton("Pre-40-Post", "PAIR_INTERVAL=40  RunSTDP()")		
+				xbutton("Pre-10-Post", "PAIR_INTERVAL=10  RunSTDP()")
+				xbutton("Pre-100-Post", "PAIR_INTERVAL=100  RunSTDP()")
+				xbutton("IPSP Delay", "SID_init()")
+				xbutton("IPSP Weight", "SIW_init()")
+				xbutton("IPSP Location", "SIL_init()")
+				xbutton("Burst Freq", "SBF_init()")
+				xbutton("Burst Freq Pilot", "SBFP_init()")
+				xbutton("BCE Fig", "BCEFig_init()")
+				xbutton("IPSP Weight Post 10Hz", "SIW10_init()")
+				xbutton("IPSP Location Post 10Hz", "SIL10_init()")				
+				xbutton("IPSP Weight Integ Pre-10-Post", "IntegWeight(true)")				
+				xbutton("IPSP Weight Integ Post-10-Pre", "IntegWeight(false)")			
+				xbutton("IPSP Location Integ Pre-10-Post", "IntegLocation(true)")				
+				xbutton("IPSP Location Integ Post-10-Pre", "IntegLocation(false)")								
+				xbutton("Cutsuridis Figure", "STDP_Cut_init()")								
+				xbutton("FENS_No_Inhibition", "SNI_init()")								
+				xbutton("FENS_TRACE_Fig_init", "FENS_TRACE_Fig_init()")			
+			xbutton("STDP_FENS_Cal_init", "STDP_FENS_Cal_init()")
+				
+			xmenu()
+			xcheckbox("STDP Figure", &bStdpFig)
+			xcheckbox("STDP Output Figure", &bSTDPoutputFig)
+			
+			xlabel("Short Paradigm")
+			xvalue("Interval", "PAIR_INTERVAL")
+			xbutton("Post-Interval-Pre Pairing", "  RunSTDP()")					
+			
+			xlabel("STDP Curve")
+			xcheckbox("Simple STDP", &iStdpRunSimple)
+			xbutton("STDP Curve", "STDP_Curve()",1)			
+			
+			xbutton("Load prev STDP", "STDP_Chooser()", 1)
+		xpanel()
+	
+	xpanel("Parameters",0)
+		xcheckbox("LTP agents", &STDP_Menu_Agent, "STDP_Menu_Agents()")
+	xpanel()
+	
+	mStdpMenu.intercept(0)
+    mStdpMenu.map("Buttons", 800, 200, -1, -1)		
+	STDP_Menu_Agents()
+}
+	objref mStdpVerify
+proc STDP_Menu_Agents() { 
+	mStdpAgentsMenu = new VBox()
+    mStdpAgentsMenu.intercept(1)
+	if (STDP_Menu_Agent == true) { 
+		xpanel("Parameters",0)		
+			xlabel("LTP Agents")
+			xvalue("P (pHC) (mM)", "CA1PyramidalCell[0].ltpltd.pHC")
+			xvalue("pHN", "CA1PyramidalCell[0].ltpltd.pHN")
+			
+			
+			xvalue("V (theta_v) (mM)", "CA1PyramidalCell[0].ltpltd.theta_v")
+			xvalue("V (sigma_v)", "CA1PyramidalCell[0].ltpltd.sigma_v")
+					
+			xvalue("alpha_w", "CA1PyramidalCell[0].ltpltd.alpha_w")
+		
+			xvalue("cp", "CA1PyramidalCell[0].ltpltd.cp")		
+			xvalue("cd", "CA1PyramidalCell[0].ltpltd.cd")			
+
+			xvalue("low_p", "CA1PyramidalCell[0].ltpltd.low_p")		
+			
+			xvalue("kp", "CA1PyramidalCell[0].ltpltd.kp")		
+		xpanel()
+	}
+	
+	if (STDP_Menu_Agent == false) {
+		xpanel("Parameters",0)		
+			xlabel("LTD Agents")
+			xvalue("A (aHC) (mM)", "CA1PyramidalCell[0].ltpltd.aHC")
+			xvalue("A (aHN)", "CA1PyramidalCell[0].ltpltd.aHN")		
+			
+			xvalue("B (theta_b)", "CA1PyramidalCell[0].ltpltd.theta_b")
+			xvalue("B (sigma_b)", "CA1PyramidalCell[0].ltpltd.sigma_b")
+			xvalue("D (theta_d)", "CA1PyramidalCell[0].ltpltd.theta_d")
+			xvalue("D (sigma_d)", "CA1PyramidalCell[0].ltpltd.sigma_d")
+					
+			xvalue("beta_w", "CA1PyramidalCell[0].ltpltd.beta_w")
+			
+			xvalue("low_d", "CA1PyramidalCell[0].ltpltd.low_d")				
+			xvalue("kd", "CA1PyramidalCell[0].ltpltd.kd")
+		xpanel()
+	}
+	mStdpAgentsMenu.intercept(0)
+    mStdpAgentsMenu.map("Buttons", 800, 520, -1, -1)		
+	
+		
+	useVerifyMenu = true
+	if ( 	useVerifyMenu ==  true ) {
+		
+ 		vbox_st(mStdpVerify )
+		xpanel("STDP Verify",0)
+		xlabel("LTD Brief")
+			xbutton("Post-10-Pre, 1", "blockGABA = true P_NUM = 1  PAIR_INTERVAL=-10  RunSTDP()")
+			xbutton("Post-20-Pre, 1", "blockGABA = true P_NUM = 1  PAIR_INTERVAL=-20  RunSTDP()")
+			xbutton("Post-10-Pre, 20 nS, 1", "blockGABA = false bUseFeedforward = true bUseFeedback = false weight_BC_CA1 = 0.02 P_NUM = 1  PAIR_INTERVAL=-10  RunSTDP()")
+			xbutton("Post-30-Pre, 1", "blockGABA = true P_NUM = 1  PAIR_INTERVAL=-30  RunSTDP()")
+			xbutton("Pre-70-Post, 1", "blockGABA = true P_NUM = 1  PAIR_INTERVAL=70  RunSTDP()")
+			xbutton("Pre-40-Post, 1", "blockGABA = true P_NUM = 1  PAIR_INTERVAL=40  RunSTDP()")
+			xbutton("Pre-0-Post, 1", "blockGABA = true P_NUM = 1  PAIR_INTERVAL=0  RunSTDP()")
+
+		// xlabel("LTD Full") 
+			// xbutton("Post-10-Pre, 20", "blockGABA = true P_NUM = 20  PAIR_INTERVAL=-10  RunSTDP()")
+			// xbutton("Post-20-Pre, 20", "blockGABA = true P_NUM = 20  PAIR_INTERVAL=-20  RunSTDP()")
+			// xbutton("Post-10-Pre, 20 nS, 20", "blockGABA = false bUseFeedforward = true bUseFeedback = false weight_BC_CA1 = 0.02 P_NUM = 20  PAIR_INTERVAL=-10  RunSTDP()")
+
+		xlabel("LTP Check") 
+			xbutton("Pre-100-Post, 1", "blockGABA = true P_NUM = 1  PAIR_INTERVAL=100  RunSTDP()")
+			xbutton("Pre-40-Post, 1", "blockGABA = true P_NUM = 1  PAIR_INTERVAL=40  RunSTDP()")
+			xbutton("Pre-10-Post, 1", "blockGABA = true P_NUM = 1  PAIR_INTERVAL=10  RunSTDP()")
+			xbutton("Pre-20-Post, 1", "blockGABA = true P_NUM = 1  PAIR_INTERVAL=20  RunSTDP()")
+			xbutton("Pre-10-Post FF, 1", "blockGABA = false bUseFeedforward = true bUseFeedback = false weight_BC_CA1 = 0.01 P_NUM = 1  PAIR_INTERVAL=10  RunSTDP()")
+
+		xlabel("LTP Check") 
+			// xbutton("Pre-16-Post, 2", "blockGABA = true P_NUM = 20  PAIR_INTERVAL=16  RunSTDP()")
+			xbutton("Pre-6-Post, 2", "blockGABA = true P_NUM = 20  PAIR_INTERVAL=6  RunSTDP()")
+			xbutton("Pre-10-Post, 2", "blockGABA = true P_NUM = 20  PAIR_INTERVAL=10  RunSTDP()")
+			// xbutton("Pre-20-Post, 2", "blockGABA = true P_NUM = 20  PAIR_INTERVAL=20  RunSTDP()")
+			xbutton("Pre-10-Post FF 10 nS, 20", "blockGABA = false bUseFeedforward = true bUseFeedback = false weight_BC_CA1 = 0.01 P_NUM =20  PAIR_INTERVAL=10  RunSTDP()")
+			xbutton("Pre-10-Post FF 20 nS, 20", "blockGABA = false bUseFeedforward = true bUseFeedback = false weight_BC_CA1 = 0.02 P_NUM =20  PAIR_INTERVAL=10  RunSTDP()")
+			// xbutton("Pre-10-Post FF 100 um / 10 nS, 20", "blockGABA = false bUseFeedforward = true bUseFeedback = false CA1PyramidalCell[0].reloc_syn(nclist.o(iBC_CA1_nc),100) weight_BC_CA1 = 0.01 P_NUM =20  PAIR_INTERVAL=10  RunSTDP()")
+			xbutton("Pre-10-Post FF 50 um / 10 nS, 20", "blockGABA = false bUseFeedforward = true bUseFeedback = false CA1PyramidalCell[0].reloc_syn(nclist.o(iBC_CA1_nc),50) weight_BC_CA1 = 0.01 P_NUM =20  PAIR_INTERVAL=10  RunSTDP()")
+			xbutton("Pre-10-Post FF 150 um / 10 nS, 20", "blockGABA = false bUseFeedforward = true bUseFeedback = false CA1PyramidalCell[0].reloc_syn(nclist.o(iBC_CA1_nc),150) weight_BC_CA1 = 0.01 P_NUM =20  PAIR_INTERVAL=10  RunSTDP()")
+
+		xlabel("")
+		
+		xpanel()
+		
+		vbox_ed(mStdpVerify, "STDP Verify", 600, 200, 140, 550)
+		}
+		
+}
+
+
+objref STDP_Dts , STDP_WeightsEPSC
+objref savdata, tempmatrix
+objref rs_g
+strdef stdp_filename
+proc STDP_Print() { localobj o
+	o = CA1PyramidalCell[0]	
+	if (o.EPSCcnt.firstepsc > 0 ) {
+		STDP_EPSC_Change = (o.EPSCcnt.diffepsc / o.EPSCcnt.firstepsc) * 100
+		STDP_EPSC_Change2 = (o.pre_list.o(0).diffepsc / o.pre_list.o(0).firstepsc) * 100
+	}
+	sprint(sStdpTitle, "STDP DT : %d ---> STDP Weight EPSC : %f Percents\n", $1, STDP_EPSC_Change)
+	print sStdpTitle
+	sprint(sStdpTitle, "(2nd)STDP DT : %d ---> STDP Weight EPSC : %f Percents\n", $1, STDP_EPSC_Change2)
+	print sStdpTitle
+	STDP_EPSC_Change = STDP_EPSC_Change2
+	sprint(string, "system(\"mkdir Figures/STDP\")")
+	execute(string)
+	
+	sprint ( stdp_filename, "Figures/STDP/%d.Parameters.txt", Simul_ID)						
+	STDP_Parameter_Save(stdp_filename)
+	
+	sprint ( stdp_filename, "Figures/STDP/%d_STDP_Readout_%s.txt", Simul_ID, simulation_code )						
+	savdata = new File()
+	savdata.aopen(stdp_filename)
+	savdata.printf("%g %g\r\n",$1, o.ltpltd.Avg_W)	
+	savdata.close()
+	
+	sprint ( stdp_filename, "Figures/STDP/%d_STDP_EPSC_%s.txt", Simul_ID, simulation_code )						
+	savdata = new File()
+	savdata.aopen(stdp_filename)
+	savdata.printf("%g %g\r\n",$1, STDP_EPSC_Change)	
+	savdata.close()	
+}
+
+proc STDP_Chooser() { local p, w localobj fp, pv, wv, si
+	pv = new Vector()
+	wv = new Vector() 
+	fp = new File() 
+	
+	fp.chooser("r", "Open a STDP curve file", "*.txt", "Open", "Cancel", "./Figures/STDP")
+	
+	if (fp.chooser()) { 
+		while (!fp.eof()){
+		
+			p = fp.scanvar()
+			w = fp.scanvar()
+			
+			pv.append(p)
+			wv.append(w)
+			
+		}	
+	}
+	
+	fp.close()
+	
+	si = pv.sortindex
+	
+	gIDX_STDP = new_graph(-100,100)
+	wv.index(si).line(get_graph(gIDX_STDP),pv.index(si),2,2)
+	get_graph(gIDX_STDP).size(-100,100,-40,110)
+}
+
+proc RunSTDP() {
+	if (numarg() > 0 ) {
+		PAIR_INTERVAL = $1
+	}
+	if (PAIR_INTERVAL < 0) {
+		// PAIR_INTERVAL = POST_PEAK to EPSP onset
+		STDP_Fig(CA1_STIM, STIM_START, CA3_STIM, STIM_START - PAIR_INTERVAL - SC_DELAY - 1.7) // Compensation between CA3-CA1 Latency
+	} else {
+		// PAIR_INTERVAL = EPSP onset to POST_PEAK
+		STDP_Fig(CA1_STIM, STIM_START, CA3_STIM, STIM_START-  ( PAIR_INTERVAL + SC_DELAY + 1.7)) //Compensation beween CA3-CA1 latency
+	}	
+	
+	AP_Onset_t = oStdpPostStim.del + 2
+	EPSP_Onset_t = oStdpPreStim.del
+	
+	CA1PyramidalCell[0].soma.tRange1_anAP = EPSP_Onset_t
+	CA1PyramidalCell[0].soma.tRange2_anAP = AP_Onset_t
+	forsec CA1PyramidalCell[0].apical_trunk_list {
+		tRange1_anAP = EPSP_Onset_t
+		tRange2_anAP = AP_Onset_t
+	}
+		
+	// latency_bpap_onset()
+	my_run()
+	STDP_Print(PAIR_INTERVAL)
+}
+
+proc STDP_Simple() {
+	lStdpIntervals = new Vector()
+	lStdpIntervals.append(-100)
+	// lStdpIntervals.append(-60)
+	lStdpIntervals.append(-40)
+	lStdpIntervals.append(-20)
+	lStdpIntervals.append(-10)
+	// lStdpIntervals.append(-8)
+	lStdpIntervals.append(0)
+	lStdpIntervals.append(8)
+	lStdpIntervals.append(10)
+	lStdpIntervals.append(20)
+	lStdpIntervals.append(40)
+	// lStdpIntervals.append(60)
+	lStdpIntervals.append(100)
+
+}
+proc STDP_Detail() { local i, PLOT_DT
+	lStdpIntervals = new Vector()	
+	
+	// STDP_FROM = -100
+	// STDP_TO = -50
+	// STDP_FROM = -48
+	// STDP_TO = 0
+	// STDP_FROM = 2
+	// STDP_TO = 48	
+	STDP_FROM = -60
+	STDP_TO = 60
+	
+	PLOT_DT = 2
+	for (i=STDP_FROM; i<=STDP_TO; i = i + PLOT_DT) {		
+
+		lStdpIntervals.append(i)
+	}
+}
+
+
+
+strdef store_file
+objref STDP_ReadOut, ro_g
+proc STDP_Curve() { local i localobj timevec, cavec, o, savdata, tempmatrix
+	if (iStdpRunSimple == true) {
+		STDP_Simple()
+	} else {
+		STDP_Detail()
+	}
+	
+	init_run()
+	o = CA1PyramidalCell[0]
+		
+		
+	STDP_Dts = new Vector()
+	STDP_WeightsEPSC = new Vector()	
+	STDP_ReadOut = new Vector()
+	
+	for (i=0; i<lStdpIntervals.size(); i = i + 1) {
+		PAIR_INTERVAL = lStdpIntervals.x(i)
+		
+		sprint(sStdpTitle,"STDP DT : %d \n", PAIR_INTERVAL)
+		print sStdpTitle
+		
+		RunSTDP()
+	
+		STDP_WeightsEPSC.append(STDP_EPSC_Change)
+		STDP_ReadOut.append(o.ltpltd.Avg_W)
+		STDP_Dts.append(PAIR_INTERVAL)
+	}
+
+	if (bSTDPoutputFig == true ) {
+		gIDX_STDP_EPSC = new_graph(-100,100)
+		STDP_WeightsEPSC.line(get_graph(gIDX_STDP_EPSC),STDP_Dts,2,2)
+		get_graph(gIDX_STDP_EPSC).size(-100,100,-100,100)
+
+		// gIDX_STDP_Readout = new_graph(-100,100)
+		// STDP_ReadOut.line(get_graph(gIDX_STDP_Readout),STDP_Dts,2,2)
+	}
+	
+	// get_graph(gIDX_STDP_Readout).size(-100,100,-100,100)
+
+	//+ o t s O T S | -
+}
+
+
+
+
+
+
+
+proc STDP_EGABA() { local i localobj timevec, cavec, o, savdata, tempmatrix
+	if (iStdpRunSimple == true) {
+		STDP_Simple()
+	} else {
+		STDP_Detail()
+	}
+	
+	init_run()
+	o = CA1PyramidalCell[0]
+		
+		
+	STDP_Dts = new Vector()
+	STDP_WeightsEPSC = new Vector()	
+	STDP_ReadOut = new Vector()
+	
+	for (i=-75; i<=-56; i = i + 2) {
+		CA1PyramidalCell[0].pre_list.o[i_BC_CA1_I].e = i
+		
+		PAIR_INTERVAL = 10		
+		sprint(sStdpTitle,"STDP DT : %d \n", PAIR_INTERVAL)
+		print sStdpTitle
+		
+		RunSTDP()
+	
+		STDP_WeightsEPSC.append(STDP_EPSC_Change)
+		STDP_ReadOut.append(o.ltpltd.Avg_W)
+		STDP_Dts.append(i)
+	}
+	sprint ( store_file, "Figures/%d/Parameters.txt", Simul_ID)						
+	STDP_Parameter_Save(store_file)
+	// sprint ( store_file, "Figures/%d/STDP_%s.txt", Simul_ID, simulation_code )						
+
+	// savdata = new File()
+	// savdata.aopen(store_file)
+	// tempmatrix = new Matrix()
+
+	// tempmatrix.resize(STDP_WeightsEPSC.size(),2)
+	// tempmatrix.setcol(0, STDP_Dts)
+	// tempmatrix.setcol(1, STDP_WeightsEPSC)
+
+	// tempmatrix.fprint(savdata, " %g", "\r\n")
+	// savdata.close()
+	
+	gIDX_STDP_EPSC = new_graph(-100,100)
+	STDP_WeightsEPSC.line(get_graph(gIDX_STDP_EPSC),STDP_Dts,2,2)
+	get_graph(gIDX_STDP_EPSC).size(-100,100,-100,100)
+
+	gIDX_STDP_Readout = new_graph(-100,100)
+	STDP_ReadOut.line(get_graph(gIDX_STDP_Readout),STDP_Dts,2,2)
+	// get_graph(gIDX_STDP_Readout).size(-100,100,-100,100)
+
+	//+ o t s O T S | -
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+proc STDP_Parameter_Save () { localobj param_file, o
+	o = CA1PyramidalCell[0]
+	
+	param_file = new File()
+	param_file.aopen($s1)
+	param_file.printf("---------------------------------------\r\n")
+	param_file.printf( "|\t%s\t   |\t%02d\t|\r\n", "Simul_ID", Simul_ID)
+	param_file.printf( "|\t%s\t   |\t%s\t|\r\n", "Simul_Code", simulation_code)
+	param_file.printf( "|\t%s\t   |\t%fnA\t|\r\n", "CA1_STIM", CA1_STIM)
+	param_file.printf( "|\t%s\t   |\t%fHz\t|\r\n", "Pair_Freq", P_FREQ)
+	param_file.printf( "|\t%s\t   |\t%f\t|\r\n", "pHC",  o.ltpltd.pHC)
+	param_file.printf( "|\t%s\t   |\t%f\t|\r\n", "aHC",  o.ltpltd.aHC)	
+	param_file.printf( "|\t%s\t   |\t%f\t|\r\n", "theta_v",  o.ltpltd.theta_v)
+	param_file.printf( "|\t%s\t   |\t%f\t|\r\n", "theta_b",  o.ltpltd.theta_b)
+	param_file.printf( "|\t%s\t   |\t%f\t|\r\n", "theta_d",  o.ltpltd.theta_d)		
+	param_file.printf( "|\t%s\t   |\t%f\t|\r\n", "low_p",  o.ltpltd.low_p)	
+	param_file.printf( "|\t%s\t   |\t%f\t|\r\n", "low_d",  o.ltpltd.low_d)		
+	param_file.printf( "|\t%s\t   |\t%f\t|\r\n", "kp",  o.ltpltd.kp)
+	param_file.printf( "|\t%s\t   |\t%f\t|\r\n", "kd",  o.ltpltd.kd)
+	param_file.printf( "|\t%s\t   |\t%f\t|\r\n", "alpha_w",  o.ltpltd.alpha_w)		
+	param_file.printf( "|\t%s\t   |\t%f\t|\r\n", "beta_w",  o.ltpltd.beta_w)
+	param_file.printf("---------------------------------------\r\n")
+	param_file.close()
+}
+objref oStdpFig, STDP_button
+proc STDP_figures() {
+	useSynapticFigure = false
+	useCalciumFigure = true
+	useLTDagentsFigure = true
+	usePDFigure = true
+	useSTDPoutFigure = false
+
+	
+	vbox_st(oStdpFig)
+	if (useSynapticFigure == true) {
+		gIDX_CA1_SYN = new_graph(0,2)
+		add_plot(gIDX_CA1_SYN, "Pre", "oStdpPreStim.i",2,1)
+		add_plot(gIDX_CA1_SYN, "Pre EPSC (pA)", "CA1PyramidalCell[0].pre_list.o[i_CA3_CA1_EA].i + CA1PyramidalCell[0].pre_list.o[i_CA3_CA1_EN].i ", 3, 1)
+		add_plot(gIDX_CA1_SYN, "Post", "oStdpPostStim.i" ,4,1)
+	}
+	if (useCalciumFigure == true) {
+		if (PAIR_INTERVAL >= 0 ) {
+			gIDX_CA1_CA = new_graph( 0 , 12)
+		} else {
+			gIDX_CA1_CA = new_graph( 0 , 2)
+		}
+		add_plot(gIDX_CA1_CA, "[Ca2+]i (150um) (uM) ", "CA1PyramidalCell[0].ltpltd.xspine  * 1e3" , 3 , 3)
+		add_plot(gIDX_CA1_CA, "P Threshold (uM)" , "CA1PyramidalCell[0].ltpltd.pHC  * 1e3 ", 4, 6)
+		add_plot(gIDX_CA1_CA, "D Threshold (uM)" , "CA1PyramidalCell[0].ltpltd.aHC  * 1e3", 5, 6)
+		add_plot(gIDX_CA1_CA, "V Threshold (uM)" , "CA1PyramidalCell[0].ltpltd.theta_v  * 1e3", 6, 6)
+		// get_graph(gIDX_CA1_CA).exec_menu("Keep Lines")		
+	}	
+	if (useLTDagentsFigure == true) {
+		gIDX_LTDAgent = new_graph(0, 4)
+		add_plot(gIDX_LTDAgent, "V" , "CA1PyramidalCell[0].ltpltd.V", 2, 1)
+		add_plot(gIDX_LTDAgent, "A" , "CA1PyramidalCell[0].ltpltd.A", 3, 6)
+		add_plot(gIDX_LTDAgent, "B" , "CA1PyramidalCell[0].ltpltd.B", 4, 6)
+		add_plot(gIDX_LTDAgent, "B_threshold" , "CA1PyramidalCell[0].ltpltd.theta_b", 4, 6)
+		add_plot(gIDX_LTDAgent, "D_threshold" , "CA1PyramidalCell[0].ltpltd.theta_d", 5, 6)
+	}
+	if ( usePDFigure == true){
+		gIDX_PDfigure = new_graph(0, 1)
+		add_plot(gIDX_PDfigure, "Pfact" , "CA1PyramidalCell[0].ltpltd.P_Fact", 4, 6)		
+		add_plot(gIDX_PDfigure, "Dfact" , "CA1PyramidalCell[0].ltpltd.D_Fact", 5, 6)		
+		add_plot(gIDX_PDfigure, "P" , "CA1PyramidalCell[0].ltpltd.P", 2, 2)
+		add_plot(gIDX_PDfigure, "D" , "CA1PyramidalCell[0].ltpltd.D", 3, 2)				
+	}
+	if (useSTDPoutFigure == true) {
+		gIDX_MODULE = new_graph(0.03,-0.03)
+		add_plot(gIDX_MODULE, "W" , "CA1PyramidalCell[0].ltpltd.W", 6, 1)
+		add_plot(gIDX_MODULE, "Average W" , "CA1PyramidalCell[0].ltpltd.Avg_W", 2, 2)
+	}
+	
+	xpanel("Average Weight")
+		xvalue("WEIGHT", "CA1PyramidalCell[0].ltpltd.Avg_W",2)
+	xpanel()
+
+	
+	vbox_ed(oStdpFig, "STDP Agents", 100, 300, 200, 400)
+
+}
+
+STDP_Menu() 
+
+
+
+{load_file("STDP.BCE.Figure.hoc")}
+

@@ -1,0 +1,360 @@
+
+
+objref distrx, distry, cdistry, p, calcium_peak_stim, calcium_peak_stim_step
+objref calcium_peak_g_spruston, calcium_peak_g_golding_A, calcium_peak_g_golding_B
+objref calcium_peak_g_Gasparini, calcium_peak_g_c,calcium_peak_g_g
+
+objref ca1obj
+ca1obj = CA1PyramidalCell[0]
+
+proc calcium_peak () {
+	
+	calcium_peak_runm()
+}
+
+proc calcium_peak_single () {
+
+	ca1obj.soma calcium_peak_stim = new IClampISIBurst(0.5)	
+	calcium_peak_stim.del = T_STARTTIME + STIM_START
+	calcium_peak_stim.amp = CA1_STIM
+	calcium_peak_stim.single_dur = 5
+	calcium_peak_stim.isi = 1000
+	calcium_peak_stim.num = 1
+	calcium_peak_stim.burst_isi = 40
+	calcium_peak_stim.burst_num = 1
+	
+	tstop = T_STARTTIME + STIM_START + 1000
+	
+}
+proc calcium_peak_train () {
+
+	ca1obj.soma calcium_peak_stim_step = new IClamp(0.5)
+	calcium_peak_stim_step.del = T_STARTTIME + STIM_START
+	calcium_peak_stim_step.amp = CA1_STIM
+	calcium_peak_stim_step.dur = 500
+
+	
+	tstop = 4000	
+}
+proc calcium_peak_chen() {
+	ca1obj.soma calcium_peak_stim_step = new IClampISI(0.5)
+	calcium_peak_stim_step.del = T_STARTTIME + STIM_START
+	calcium_peak_stim_step.amp =CA1_STIM
+	calcium_peak_stim_step.dur = 5
+	calcium_peak_stim_step.interval = 1000 / 20
+	calcium_peak_stim_step.num = 3	
+
+	
+	tstop = 2000	
+	
+}
+objref fac[4], savCaG[4]
+proc graph_calcium_conductance(){  local abc, abc2, i, j
+
+	distrx = new Vector()
+	
+	for (i=0;i<4;i=i+1 ) {
+		fac[i] = new Vector()
+	}
+	
+	distrx.append(0)
+	fac[0].append(  ca1obj.soma.gcatbar_catm(0.5) )
+	fac[1].append( ca1obj.soma.gcabar_car(0.5) )
+	fac[2].append( ca1obj.soma.gcalbar_calm(0.5) )
+	fac[3].append(ca1obj.soma.gcalbar_calm(0.5) + ca1obj.soma.gcatbar_catm(0.5) + ca1obj.soma.gcabar_car(0.5) )	
+	
+	forsec ca1obj.apical_trunk_list {
+		for (x) if (x>0 && x<1) { xdist = distance(x)
+			if (diam>=0. ) {
+				distrx.append(xdist)
+				
+				fac[0].append(  gcatbar_catm(x) )
+				fac[1].append( gcabar_car(x)  )
+				fac[2].append( gcalbar_calm(x) )
+				fac[3].append( gcalbar_calm(x) + gcatbar_catm(x)   + gcabar_car(x) )
+				
+			}
+		}
+	}
+	calcium_peak_g_g = new Graph()
+	calcium_peak_g_g.xaxis(1)
+	calcium_peak_g_g.color(1)
+	calcium_peak_g_g.label(0.4,0.8, "calcium conductances")	
+		
+	for (i=0;i<4;i=i+1) {
+		fac[i].mark(calcium_peak_g_g,distrx,"O",2,i+1,2)
+	}		
+	
+	calcium_peak_g_g.size(0,500,0,0.001)	
+	calcium_peak_g_g.exec_menu("View Axis") 		
+	
+	for (i=0;i<4;i=i+1) { 
+		savCaG[i] = new File()
+	}
+	savCaG[0].wopen("calcium_T.dat")
+	savCaG[1].wopen("calcium_R.dat")
+	savCaG[2].wopen("calcium_L.dat")
+	savCaG[3].wopen("calcium_All.dat")
+	
+	for (i=0;i<4;i=i+1) { 
+		for j=0,fac[i].size()-1 {
+			savCaG[i].printf("%g %g\n", distrx.x(j), fac[i].x(j))
+		}
+		savCaG[i].close()
+	}
+	
+} 
+proc graph_calcium_gasparini_fig1(){
+	// Gasparini
+	distrx = new Vector()
+	distry = new Vector()
+	forsec CA1PyramidalCell[0].apical_trunk_list {
+		for (x) if (x>0 && x<1) { xdist = distance(x)
+			if (diam>=0. && xdist > 50 && xdist < 250) {
+				distrx.append(xdist)
+				distry.append(  (  (camax_dsca(x)  - carest_dsca(x) ) / carest_dsca(x) ) * 100 )
+				// print xdist, catimerest_dsca(x), camax_dsca(x)* 1000 *1000, carest_dsca(x) *1000*1000
+			}
+		}
+	}
+	calcium_peak_g_Gasparini = new Graph()
+	calcium_peak_g_Gasparini.xaxis(1)
+	calcium_peak_g_Gasparini.color(1)
+	calcium_peak_g_Gasparini.label(0.4,0.8, "Gasparini (Fig 1. G) dF/F(%)")	
+		
+
+	distry.mark(calcium_peak_g_Gasparini,distrx,"O",3,3,2)			
+
+		
+	calcium_peak_g_Gasparini.size(0,250,0,100)	
+	calcium_peak_g_Gasparini.exec_menu("View Axis") 	
+} 
+proc graph_calcium_g_golding_figB () {
+
+distrx = new Vector()
+	distry = new Vector()
+	norm_max = 0
+	forsec CA1PyramidalCell[0].apical_trunk_list {
+		for (x) if (x>0 && x<1) { xdist =distance(x)
+			if (diam>=.0 && xdist > 190 && xdist < 450) {
+				distrx.append(xdist)
+				distry.append( ( camax_dsca(x) - carest_dsca(x)) / carest_dsca(x))
+			}
+		}
+	}
+	max_ca = distry.max
+	for (i =0;i<distry.size();i=i+1){
+		distry.x[i] = distry.x[i] / max_ca
+	}		
+	calcium_peak_g_golding_B = new Graph()
+	calcium_peak_g_golding_B.xaxis(1)
+	calcium_peak_g_golding_B.color(1)
+	calcium_peak_g_golding_B.label(0.4,0.8, "Relative dF/F Normalized")	
+		
+
+	distry.mark(calcium_peak_g_golding_B,distrx,"O",3,3,2)		
+	calcium_peak_g_golding_B.size(200,450,0,1)		
+	calcium_peak_g_golding_B.exec_menu("View Axis") 			
+}
+proc graph_calcium_g_golding_figA() {
+	// GOLDING FIG 7A
+	distrx = new Vector()
+	distry = new Vector()
+	forsec CA1PyramidalCell[0].apical_trunk_list {
+		for (x) if (x>0 && x<1) { xdist = distance(x)
+			if (diam>=0. && xdist > 80 && xdist < 400) {
+				distrx.append(xdist)
+				distry.append(  (  (camax_dsca(x)  - carest_dsca(x) ) / carest_dsca(x) ) * 100 )
+				// print xdist, catimerest_dsca(x), camax_dsca(x)* 1000 *1000, carest_dsca(x) *1000*1000
+			}
+		}
+	}
+	calcium_peak_g_golding_A = new Graph()
+	calcium_peak_g_golding_A.xaxis(1)
+	calcium_peak_g_golding_A.color(1)
+	calcium_peak_g_golding_A.label(0.4,0.8, "dF/F(%)")	
+		
+
+	distry.mark(calcium_peak_g_golding_A,distrx,"O",3,3,2)			
+
+		
+	calcium_peak_g_golding_A.size(100,400,0,25)	
+	calcium_peak_g_golding_A.exec_menu("View Axis") 	
+	
+			
+}
+
+objref savCa, savDistrX
+proc graph_calcium_sprunston() { local i,j
+
+	
+	distrx=new Vector()
+	distry=new Vector()
+	
+	distrx.append(0)
+	distry.append( (ca1obj.soma.camax_dsca(0.5) - ca1obj.soma.carest_dsca(0.5)) * 1e6 )
+	
+	forsec ca1obj.apical_trunk_list {
+		for (x) if (x>0 && x<1) {
+			if (diam>=0.) {
+			distrx.append(distance(x)) 
+			distry.append(  (camax_dsca(x) - carest_dsca(x) )* 1000 * 1000  )
+			}
+		}
+	}
+	
+	
+	calcium_peak_g_spruston = new Graph()	
+	calcium_peak_g_spruston.xaxis(1)
+	calcium_peak_g_spruston.color(1)
+	calcium_peak_g_spruston.label(0.4,0.8, "d[Ca2+]i (nM) vs distance (ms)")
+	
+	distry.mark(calcium_peak_g_spruston,distrx,"O",3,3,2)			
+	
+	if (APMethod == 0) {
+		calcium_peak_g_spruston.size(0,500,0,200)	
+	} 	else {
+		calcium_peak_g_spruston.size(0,500,0,1000)		
+	}		
+	calcium_peak_g_spruston.exec_menu("View Axis") 
+
+	
+	savCa = new File()
+	savCa.wopen("calcium_influx.dat")
+	for i=0,distry.size()-1 {
+		savCa.printf("%g %g\n", distrx.x(i), distry.x(i))
+	}
+	savCa.close()		
+	
+	
+	// peak_bpap_runp() 
+	
+
+	
+}
+
+proc graph_calcium_transient() {
+
+	distrx=new Vector()
+	distry=new Vector()
+			distrx.append(0) 
+			distry.append(  camax_dsca(x) * 1e6 )
+	forsec CA1PyramidalCell[0].apical_trunk_list {
+		for (x,0) if (x>0 && x<1) { xdist = distance(x)
+			distrx.append(xdist) 
+			distry.append(  camax_dsca(x) * 1e6 )			
+		}
+	}
+	
+	
+	calcium_peak_g_c = new Graph()	
+	calcium_peak_g_c.xaxis(1)
+	calcium_peak_g_c.color(1)
+	calcium_peak_g_c.label(0.4,0.8, "[Ca2+]i transient (nM) vs distance (ms)")
+	
+	distry.mark(calcium_peak_g_c,distrx,"O",3,3,2)			
+	
+	if (APMethod == 0) {
+		calcium_peak_g_c.size(0,500,0,200)	
+	} 	else {
+		calcium_peak_g_c.size(0,500,0,1000)		
+	}		
+		calcium_peak_g_c.exec_menu("View Axis") 
+
+}
+
+objref fig2
+proc calcium_peak_trace () {
+
+vbox_st(fig2)
+	ca_unit = 1e6
+	ca_max = 100
+	
+	// gIDX_CA1_1 = new_graph(0, ca_max)
+	// add_label(gIDX_CA1_1,  "d[Ca2+]i (nM)", 0.73222967 , .8)	
+	// add_plot(gIDX_CA1_1, "cai dist apical(400um)", "(CA1PyramidalCell[0].apical.cai(390/500) - CA1PyramidalCell[0].apical.carest_dsca(400/500)) * ca_unit", 3, 1) // SC
+	
+		
+	// gIDX_CA1_2 = new_graph(0, ca_max)
+	// add_label(gIDX_CA1_2,  "d[Ca2+]i (nM)", 0.73222967 , .8)	
+	// add_plot(gIDX_CA1_2, "cai dist apical(390um)", "(CA1PyramidalCell[0].apical.cai(390/500) - CA1PyramidalCell[0].apical.carest_dsca(390/500)) * ca_unit", 3, 1) // SC
+	
+	
+	// gIDX_CA1_3 = new_graph(0, ca_max)
+	// add_label(gIDX_CA1_3,  "d[Ca2+]i (nM)", 0.73222967 , .8)	
+	// add_plot(gIDX_CA1_3, "cai dist apical(350um)", "(CA1PyramidalCell[0].apical.cai(350/400) - CA1PyramidalCell[0].apical.carest_dsca(350/500)) * ca_unit", 3, 1) // SC
+	
+	
+	// gIDX_CA1_4 = new_graph(0, ca_max)
+	// add_label(gIDX_CA1_4,  "d[Ca2+]i (nM)", 0.73222967 , .8)	
+	// add_plot(gIDX_CA1_4, "cai dist apical(260um)", "(CA1PyramidalCell[0].apical.cai(260/400) - CA1PyramidalCell[0].apical.carest_dsca(260/500)) * ca_unit", 3, 1) // SC
+	
+	
+	// gIDX_CA1_5 = new_graph(0, ca_max)
+	// add_label(gIDX_CA1_5,  "d[Ca2+]i (nM)", 0.73222967 , .8)
+	// add_plot(gIDX_CA1_5, "cai dist apical(200um)", "(CA1PyramidalCell[0].apical.cai(200/400) - CA1PyramidalCell[0].apical.carest_dsca(230/500)) * ca_unit", 3, 1) // SC
+	
+	// gIDX_CA1_6 = new_graph(0, ca_max)
+	// add_label(gIDX_CA1_6,  "d[Ca2+]i (nM)", 0.73222967 , .8)	
+	// add_plot(gIDX_CA1_6, "cai dist apical(130um)", "(CA1PyramidalCell[0].apical.cai(130/400) - CA1PyramidalCell[0].apical.carest_dsca(130/500)) * ca_unit", 3, 1) // SC
+	
+	
+	// gIDX_CA1_7 = new_graph(0, ca_max)
+	// add_label(gIDX_CA1_7,  "d[Ca2+]i (nM)", 0.73222967 , .8)	
+	// add_plot(gIDX_CA1_7, "cai dist apical(70um)", "(CA1PyramidalCell[0].apical.cai(70/400) - CA1PyramidalCell[0].apical.carest_dsca(70/500)) * ca_unit", 3, 1) // SC
+	
+	// gIDX_CA1_8 = new_graph(0, ca_max)
+	// add_label(gIDX_CA1_8,  "d[Ca2+]i (nM)", 0.73222967 , .8)	
+	// add_plot(gIDX_CA1_8, "cai dist apical(40um)", "(CA1PyramidalCell[0].apical.cai(40/500) - CA1PyramidalCell[0].apical.carest_dsca(40/500)) * ca_unit", 3, 1) // SC
+		
+	// gIDX_CA1_9= new_graph(0, ca_max)
+	// add_label(gIDX_CA1_9,  "d[Ca2+]i (nM)", 0.73222967 , .8)	
+	// add_plot(gIDX_CA1_9, "cai soma", "(CA1PyramidalCell[0].soma.cai(0.5) - CA1PyramidalCell[0].soma.carest_dsca(0.5))* ca_unit", 3, 1) // SC	
+	
+	
+vbox_ed(fig2, "[Ca++]i transients in various regions", 400, 100, 400, 800)
+
+}
+
+proc calcium_peak_runm() {
+	APMethod = 0//0 : Single , 1 : Train
+	init_run()	
+	
+	// calcium_peak_trace()
+	
+	if (APMethod == 0) {
+		calcium_peak_single()
+	}else if(APMethod == 1){
+		CA1_STIM = 0.2	
+		calcium_peak_train()	
+	}else if(APMethod == 2){
+		calcium_peak_chen()
+	}
+	
+
+	adjust_graph()
+	run()
+	
+		
+	
+	if (APMethod == 0) {
+		// graph_calcium_g_golding_figB()
+		// graph_calcium_g_golding_figA()		
+		graph_calcium_sprunston()
+	
+	}else if(APMethod == 1){
+		calcium_peak_train()	
+		graph_calcium_sprunston()
+	
+	}else if(APMethod == 2){
+		calcium_peak_chen()
+		graph_calcium_gasparini_fig1()
+		
+	}	
+	
+	graph_calcium_conductance()	
+	// graph_calcium_transient()
+
+	
+	doNotify()
+}

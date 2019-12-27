@@ -1,0 +1,5 @@
+// moddir mechanism
+load_file("nrngui.hoc")// load the GUI and standard run libraries
+load_file("fixnseg.hoc") 
+load_file("Init.hoc")
+//quit()

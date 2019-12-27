@@ -1,0 +1,208 @@
+{load_file("ca1_pyramidal.hoc")}
+{load_file("ca3_pyramidal.hoc")}
+// {load_file("basket_cell.hoc")}
+{load_file("stim_cell.hoc")}
+{load_file("SST_cell.hoc")}
+{load_file("PV_cell.hoc")}
+{load_file("RN_cell.hoc")}
+
+objref cells, nclist
+objref gidvec  
+//////////////////////////////////
+// Step 1: Define the cell classes
+//////////////////////////////////
+
+//Real Cell
+nCellType = 3
+
+nCA3 = 1
+nCA1 = 1
+nPV = 1
+nRN = 1
+nSST = 1
+
+ncell = nCA1 + nCA3 + nPV + nRN + nSST	// total number of cells
+
+print "Total cells : " 
+print ncell
+
+// creates the cells and appends them to a List called cells
+// argument is the number of cells to be created
+proc mkcells() {local i,j  localobj cell, nc, nil
+	print "Make cells..."
+	cells = new List()
+	
+	iCA1 = cells.count()
+	print "		cell : ", nCA1, "CA1 pyramidal cells"
+	for (i=0;i<nCA1;i+=1) {
+		cell = new CA1PyramidalCell(100)
+		cells.append(cell)
+	}  
+		
+	print "		cell : ", nCA3, "CA3 pyramidal cells"
+	iCA3 = cells.count()
+	for (i=0;i<nCA3;i+=1) {
+		cell = new CA3PyramidalCell()  
+		cells.append(cell)
+	}
+
+	print "		cell : ", nPV, "PV Cell"
+	iPV = cells.count()
+	for (i=0;i<nPV;i+=1) {
+		cell = new PV_IN()
+		cells.append(cell)
+	}
+	print "		cell : ", nRN, "RN Cell"
+	iRN = cells.count()
+	for (i=0;i<nRN;i+=1) {
+		cell = new RN_IN()
+		cells.append(cell)
+	}	
+	print "		cell : ", nSST, "SST Cell"
+	iSST = cells.count()
+	for (i=0;i<nSST;i+=1) {
+		cell = new SST_IN()
+		cells.append(cell)
+	}		
+}
+mkcells() 
+
+
+
+//////////////////////////////////////////////////////////////
+// Steps 2 and 3 are to create the cells and connect the cells
+//////////////////////////////////////////////////////////////
+objref ncWeightList, ncUseList
+
+obfunc make_synapse() { local _cell_target, _cell_source, _recep_id, _delay,_weight, i, j, gid, nsyn localobj syn, nc
+  // initialize the pseudorandom number generator	
+	_cell_target = $1
+	_cell_source = $2
+	_recep_id = $3
+	_delay = $4
+	_weight = $5
+  
+	syn = cells.o(_cell_target).pre_list.o(_recep_id)
+	nc = cells.object(_cell_source).connect2target(syn)
+	nclist.append(nc)
+	nc.threshold = 0
+	nc.delay = _delay
+	nc.weight = _weight
+				
+	ncWeightList.append(_weight)
+	ncUseList.append(1)
+	print cells.o(_cell_target), syn, " and ", cells.object(_cell_source), nc, "connected"
+ 
+	return nc
+}
+
+proc mknets() {
+	nclist =new List()
+	ncWeightList = new Vector()
+	ncUseList = new Vector()
+	
+	// Simple connectivity
+	// PV - CA1 Connectivity
+	n_BC_CA1 = nPV	// # of connections received by each PC from basket cells (inhib)
+	n_CA1_BC = nCA1
+	
+	// PV -> CA1
+	delay_BC_CA1 = 1 // ms
+	//delay_BC_CA1 = 3 // ms
+
+	make_synapse(iCA1, iPV, 3, delay_BC_CA1, 0.00015)
+	iPV_CA1_nc = nclist.count() - 1
+
+	// CA1 -> PV
+	delay_CA1_BC = 4 // ms
+	make_synapse(iPV, iCA1, 0, delay_CA1_BC, 0.003  )
+	iCA1_BC_nc = nclist.count() - 1
+
+
+    // CA3 -> CA1 AMPA & NMDA
+	delay_CA3_CA1 = 10 // ms
+ 	make_synapse(iCA1, iCA3, 0, delay_CA3_CA1, 1  )
+	iCA3_CA1_AMPA_nc = nclist.count() - 1
+
+	make_synapse(iCA1, iCA3, 1, delay_CA3_CA1, 1 )
+	iCA3_CA1_NMDA_nc = nclist.count() - 1
+
+	// CA3 -> CA1 RN -> CA1
+	delay_CA3_RN = 0
+	make_synapse(iRN, iCA3, 0, delay_CA3_RN, 0.003) //0.004  )
+	delay_RN_CA1 = 0
+	make_synapse(iCA1, iRN, 4, delay_RN_CA1, 0.001)//0.003 *0)
+
+	// CA1 -> SST -> RN
+	delay_CA1_SST = 2 //2
+	//make_synapse(iSST, iCA1, 0, delay_CA1_SST, 0    )
+	make_synapse(iSST, iCA1, 0, delay_CA1_SST, 0.002   )
+	inc_CA1_SST = nclist.count() - 1
+
+	delay_SST_RN = 2 //2
+	make_synapse(iRN, iSST, 1, delay_SST_RN, 0.05) //0.005 )
+
+}
+
+mknets()
+
+
+//////////////////////////////////////////////////////////////
+// Network Mornitor
+//////////////////////////////////////////////////////////////
+objref oMorBox
+proc makeMorn() { local i,c, iCell, nCell localobj vb, grp
+	iCell = $1
+	nCell = $2
+	
+		vb = new VBox()
+		vb.intercept(1)
+			c = 5
+			if (nCell < 5) { c = nCell }
+			for (i=iCell;i<iCell+c;i+=1){
+				grp = new MyGraph()
+				sprint(cmd, "cells.o(%d).soma.v(0.5)",i)
+				grp.g.addexpr($s3, cmd)
+				grp.size(0,1,-70,50)				
+				graphList[0].append(grp.g)
+			}
+		vb.intercept(0)
+		vb.map()
+}
+
+proc mornitor() { local i,c localobj vb, grp
+	oMorBox = new VBox() 
+	oMorBox.intercept(1)
+		makeMorn(iCA3, nCA3, "CA3")
+		makeMorn(iCA1, nCA1, "CA1")
+		makeMorn(iPV, nPV, "PV")
+		makeMorn(iRN, nRN, "RN")
+		makeMorn(iSST, nSST, "SST")
+
+		vb = new VBox()
+		vb.intercept(1)
+				grp = new Graph()		
+				grp.addvar("CaI", &cells.o(iCA1).spine.cai)
+				grp.beginline()
+				grp.line(0,4*1e-3)
+				grp.line(10000,4*1e-3)
+				grp.size(0,1,0,0.015)				
+				graphList[0].append(grp)
+		vb.intercept(0)
+		vb.map()
+
+		vb = new VBox()
+		vb.intercept(1)
+				grp = new Graph()		
+				grp.addvar("AvGW", &cells.o(iCA1).ltpltd.Avg_W)
+				grp.size(0,1,0,1)				
+				graphList[0].append(grp)
+		vb.intercept(0)
+		vb.map()
+	oMorBox.intercept(0)
+	oMorBox.map("Mornitor", 300,0, 900,700)
+	
+	// PWM = new PWManager()
+	// PWM.hide(PWM.count()-1)
+}
+// mornitor()

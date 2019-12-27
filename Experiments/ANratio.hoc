@@ -1,0 +1,26 @@
+//AMPA/ NMDA ratio
+// -90mV +40mV
+
+// begintemplate ANratio
+	// objref cell
+	// proc init (){
+		// //$o1 : cell	
+	// }
+	
+
+// endtemplate ANratio
+
+objref ANratio_cell, ANratio_stim
+proc ANratio_init () {
+	ANratio_cell = CA1PyramidalCell[0]
+			
+	ANratio_cell.apical[2] ANratio_stim = new VClamp(0.9)
+	ANratio_stim.amp[0] = -90
+	ANratio_stim.dur[0] = 2000
+	ANratio_stim.amp[1] = 40
+	ANratio_stim.dur[1] = 2000
+
+	
+	
+}
+

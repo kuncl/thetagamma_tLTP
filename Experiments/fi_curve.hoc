@@ -1,0 +1,92 @@
+
+objref fi_curve_APC, fi_curve_stim, c
+objref fi_curve_vecX, fi_curve_vecY
+objref fi_curve_cell
+proc fi_curve() { local dur
+	//$o1 : Cell $2 : duration
+	
+	
+	finish_stim = 200
+	start_stim = 0
+	
+	// finish_stim = CA1_STIM
+	// start_stim = CA1_STIM
+	
+	
+	fi_curve_cell = $o1
+	dur = $2
+	
+	c = new Graph()
+
+	c.xaxis(1)
+	c.exec_menu("10% Zoom out")
+	c.color(1)
+	c.label(0.4,0.8," F-I relationship")
+	
+	
+	fi_curve_vecX = new Vector()
+	fi_curve_vecY = new Vector()
+	
+	
+	fi_curve_cell.soma fi_curve_APC = new APCount(0.5)
+	fi_curve_cell.soma fi_curve_stim = new IClamp(0.5)
+		
+	for (fi_curve_i=start_stim;fi_curve_i<=finish_stim;fi_curve_i=fi_curve_i+20) {
+		fi_curve_fi_run(fi_curve_i, dur)
+	}
+	fi_curve_vecY.mark(c,fi_curve_vecX,"O",3,3,2)
+	fi_curve_vecY.line(c,fi_curve_vecX,3,2)	
+	c.size(0,finish_stim,0,25)
+	c.exec_menu("View Axis") 
+	
+	
+	
+	
+	
+	
+	
+	fi_curve_vecX = new Vector()	
+	fi_curve_vecY = new Vector()
+	
+	fi_curve_cell.insert_apamin()
+	
+	fi_curve_cell.soma fi_curve_APC = new APCount(0.5)
+	fi_curve_cell.soma fi_curve_stim = new IClamp(0.5)
+		
+	for (fi_curve_i=0;fi_curve_i<=finish_stim;fi_curve_i=fi_curve_i+20) {
+		fi_curve_fi_run(fi_curve_i, dur)
+	}		
+	fi_curve_vecY.mark(c,fi_curve_vecX,"o",3,2,2)
+	fi_curve_vecY.line(c,fi_curve_vecX,2,2)
+	c.size(0,finish_stim,0,25)
+	c.exec_menu("View = plot") 	
+	
+}
+proc fi_curve_fi_run () { local rat, dur
+	dur = $2
+	tstop = T_STARTTIME + dur +100
+	
+	
+	CA1_STIM = $1 * 0.001
+	
+	fi_curve_APC.n = 0
+	fi_curve_APC.thresh = -10
+	fi_curve_APC.time = 0
+	
+	init_run()
+	
+	
+	fi_curve_stim.amp = CA1_STIM
+	fi_curve_stim.del = T_STARTTIME  + STIM_START
+	fi_curve_stim.dur = dur
+	
+	adjust_graph()
+	
+	run()	
+	
+	rat = (fi_curve_APC.n * 1000) / dur
+	fi_curve_vecX.append($1)
+	fi_curve_vecY.append(rat)
+	
+	print  $1, "nA", fi_curve_APC.n, "spikes", rat , "Hz"
+}

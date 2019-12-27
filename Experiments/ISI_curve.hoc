@@ -1,0 +1,86 @@
+
+objref APC, ISI_curve_stim, c
+objref ISI_curve_vecX, ISI_curve_vecY, ISI_curve_APC_rec, ISI_curve_ISIs
+
+strdef ISI_curve_label
+
+proc ISI_curve() { local i
+	CA1_STIM = 0.16
+
+	dur = 1000
+	tstop = T_STARTTIME + STIM_START + dur + 100
+
+	ISI_curve_GUI()
+	
+	bBetaAmyloid = false
+	ISI_curve_body() 
+	
+	
+	
+	// CA1PyramidalCell[0].insert_XE991()
+
+	// bBetaAmyloid = true
+	// ISI_curve_body() 
+		
+}
+proc ISI_curve_GUI(){
+
+	
+	grpISI = new_graph(0, 150)
+	get_graph(grpISI).xaxis(1)
+	get_graph(grpISI).exec_menu("10% Zoom out")
+	get_graph(grpISI).color(1)
+	get_graph(grpISI).size(0, 20 , 0 ,  150)	
+	get_graph(grpISI).exec_menu("View Axis") 	
+	get_graph(grpISI).exec_menu("Keep Lines")
+	get_graph(grpISI).label(0.4,0.8," ISI-Relationship")		
+
+	grpISItrace = new_graph(-70, 40)
+	
+	get_graph(grpISItrace).exec_menu("10% Zoom out")	
+	get_graph(grpISItrace).exec_menu("Keep Lines")
+	get_graph(grpISItrace).label(0.4,0.8," ISI-Relationship Trace")
+	get_graph(grpISItrace).addexpr("CA1PyramidalCell[0].soma.v(0.5)")
+	get_graph(grpISItrace).size(0, tstop, -70 ,  40)	
+
+	
+		
+}
+
+
+proc ISI_curve_analysis() {
+	print "Color Code : ", 3-bBetaAmyloid
+	print APC.n
+	ISI_curve_ISIs = new Vector()
+	for (i=0; i<=ISI_curve_APC_rec.size() - 2; i= i +1){
+		ISI_curve_ISIs.append(  ISI_curve_APC_rec.x(i+1) - ISI_curve_APC_rec.x(i)  )	
+	}
+	ISI_curve_ISIs.line(get_graph(grpISI), 1 , 3 - bBetaAmyloid, 3)
+	ISI_curve_ISIs.mark(get_graph(grpISI),1,"O", 3, 3 - bBetaAmyloid, 3)
+	
+}
+
+proc ISI_curve_body() {
+	ISI_curve_APC_rec = new Vector()	
+
+	ISI_curve_vecX = new Vector()
+	ISI_curve_vecY = new Vector()
+		
+	CA1PyramidalCell[0].soma APC = new APCount(0.5)
+	CA1PyramidalCell[0].soma ISI_curve_stim = new IClamp(0.5)		
+	
+	APC.n = 0
+	APC.thresh = -10
+	APC.time = 0		
+	APC.record(ISI_curve_APC_rec)
+	
+	ISI_curve_stim.amp = CA1_STIM
+	ISI_curve_stim.del = T_STARTTIME + STIM_START
+	ISI_curve_stim.dur = dur
+
+	init_run()
+	adjust_graph()	
+	run()	
+		
+	ISI_curve_analysis()
+}

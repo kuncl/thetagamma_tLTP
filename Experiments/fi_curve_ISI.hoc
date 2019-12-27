@@ -1,0 +1,75 @@
+
+objref APC, fi_curve_ISI_stim, c
+objref fi_curve_ISI_vecX, fi_curve_ISI_vecY, ISI_Calc_Vec
+objref  fi_curve_ISI_ISIs
+proc fi_curve_ISI() { local i, 	max_HZ , dur
+	dur = $1	
+
+	c = new Graph()
+	c.xaxis(1)
+	c.exec_menu("10% Zoom out")
+	c.color(1)
+	c.label(0.4,0.8," F-I relationship")
+	c.size(0, 300, 0, 1)	
+	
+	
+	fi_curve_ISI_vecX = new Vector()
+	fi_curve_ISI_vecY = new Vector()
+	
+	ISI_Calc_Vec = new Vector()
+	
+	CA1PyramidalCell[0].soma APC = new APCount(0.5)
+	CA1PyramidalCell[0].soma fi_curve_ISI_stim = new IClamp(0.5)		
+		
+	for (fi_curve_ISI_i=0;fi_curve_ISI_i<=200;fi_curve_ISI_i=fi_curve_ISI_i+10) {
+		fi_curve_ISI_fi_run(fi_curve_ISI_i,dur)
+	}
+	
+	
+	max_HZ = fi_curve_ISI_vecY.max
+	for (i =0;i<fi_curve_ISI_vecY.size();i=i+1){
+		fi_curve_ISI_vecY.x[i] = fi_curve_ISI_vecY.x[i] / max_HZ
+	}
+	fi_curve_ISI_vecY.mark(c,fi_curve_ISI_vecX,"O",3,3,2)
+	fi_curve_ISI_vecY.line(c,fi_curve_ISI_vecX,3,3,2)
+	
+	c.exec_menu("View Axis") 
+}
+proc fi_curve_ISI_fi_run () { local i, rat, dur, ISI1
+	dur = $2
+	tstop = T_STARTTIME + dur 
+	
+	CA1_STIM = $1 * 0.001
+	
+	APC.n = 0
+	APC.thresh = 0
+	APC.time = 0
+	APC.record(ISI_Calc_Vec)
+	
+	init_run()
+	
+	fi_curve_ISI_stim.amp = CA1_STIM
+	fi_curve_ISI_stim.del = T_STARTTIME
+	fi_curve_ISI_stim.dur = dur
+		
+	adjust_graph()
+	
+	run()	
+	
+	
+	ISI1 = 0
+	if (APC.n >= 2) {
+		ISI1 = ISI_Calc_Vec.x(1) - ISI_Calc_Vec.x(0)
+		print ISI1
+	}
+		
+	rat = 0
+	if (ISI1 > 0) {
+		rat = 1 / ISI1
+	}
+
+	fi_curve_ISI_vecX.append($1)
+	fi_curve_ISI_vecY.append(rat)
+	
+	print CA1_STIM, "nA", APC.n, "spikes", rat , "Hz"
+}

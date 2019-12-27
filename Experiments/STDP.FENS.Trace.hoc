@@ -1,0 +1,271 @@
+true = 1
+bFENS_TRACE_TraceFig = true
+
+objref FENS_TRACE_g1, FENS_TRACE_g2, FENS_TRACE_g3, FENS_TRACE_g4, FENS_TRACE_g5
+objref FENS_TRACE_v1, FENS_TRACE_v2, FENS_TRACE_v3, FENS_TRACE_v4, FENS_TRACE_v5
+
+objref FENS_TRACE_2g1, FENS_TRACE_2g2, FENS_TRACE_2g3, FENS_TRACE_2g4, FENS_TRACE_2g5
+objref FENS_TRACE_vec0, FENS_TRACE_vec1_spine,FENS_TRACE_vec1_soma, FENS_TRACE_vec2, FENS_TRACE_vec3, FENS_TRACE_vec4, FENS_TRACE_vec5
+objref FENS_TRACE_vec6, FENS_TRACE_vec7, FENS_TRACE_vec8, FENS_TRACE_vec9, FENS_TRACE_vec10, FENS_TRACE_vec11
+objref FENS_TRACE_vec12, FENS_TRACE_vec13, FENS_TRACE_vec0
+
+
+
+strdef code
+proc FENS_TRACE_Fig_Code() {
+	sprint(code, "%s.%s.%d.%s", $s1,$s2,$3, $s4)
+}
+
+proc FENS_TRACE_Fig_Run() { local i, color_code localobj savtrace
+	/* FENS_TRACE_Fig_Run(Codename as string, PAIR_INTERVAl as integer, Color_code as integer) */
+	P_NUM = 1
+	PAIR_INTERVAL = $2
+	color_code = $3
+	
+	FENS_TRACE_vec0 = new Vector()
+	FENS_TRACE_vec1_spine = new Vector()
+	FENS_TRACE_vec1_soma = new Vector()
+	FENS_TRACE_vec2 = new Vector()
+	FENS_TRACE_vec3 = new Vector()
+	FENS_TRACE_vec4 = new Vector()
+	FENS_TRACE_vec5 = new Vector()
+	FENS_TRACE_vec6 = new Vector()
+	FENS_TRACE_vec7 = new Vector()
+	FENS_TRACE_vec8 = new Vector()
+	FENS_TRACE_vec9 = new Vector()
+	FENS_TRACE_vec10 = new Vector()	
+	FENS_TRACE_vec11 = new Vector()
+	FENS_TRACE_vec12 = new Vector()
+	FENS_TRACE_vec13 = new Vector()
+	
+	FENS_TRACE_vec0.record(&t)
+	FENS_TRACE_vec1_soma.record(&CA1PyramidalCell[0].soma.v(0.5))
+	FENS_TRACE_vec1_spine.record(&CA1PyramidalCell[0].spine.v(0.5))
+	FENS_TRACE_vec2.record(&CA1PyramidalCell[0].ltpltd.xspine)
+	FENS_TRACE_vec3.record(&CA1PyramidalCell[0].ltpltd.pHC)
+	FENS_TRACE_vec4.record(&CA1PyramidalCell[0].ltpltd.aHC)
+	FENS_TRACE_vec5.record(&CA1PyramidalCell[0].ltpltd.theta_v)
+	FENS_TRACE_vec6.record(&CA1PyramidalCell[0].ltpltd.V)
+	FENS_TRACE_vec7.record(&CA1PyramidalCell[0].ltpltd.A)
+	FENS_TRACE_vec8.record(&CA1PyramidalCell[0].ltpltd.B)
+	FENS_TRACE_vec9.record(&CA1PyramidalCell[0].ltpltd.theta_b)
+	FENS_TRACE_vec10.record(&CA1PyramidalCell[0].ltpltd.theta_d)
+	FENS_TRACE_vec11.record(&CA1PyramidalCell[0].ltpltd.P)
+	FENS_TRACE_vec12.record(&CA1PyramidalCell[0].ltpltd.D)
+	FENS_TRACE_vec13.record(&CA1PyramidalCell[0].ltpltd.W)
+
+	RunSTDP()
+	
+	FENS_TRACE_Fig_Code("output\\Trace.Data\\FENS_TRACE_", $s1, PAIR_INTERVAL, "V_Spine.dat")
+	FENS_TRACE__FILE(code, FENS_TRACE_vec0, FENS_TRACE_vec1_spine)
+	FENS_TRACE_Fig_Code("output\\Trace.Data\\FENS_TRACE_", $s1, PAIR_INTERVAL, "V_Soma.dat")
+	FENS_TRACE__FILE(code, FENS_TRACE_vec0, FENS_TRACE_vec1_soma)
+	FENS_TRACE_Fig_Code("output\\Trace.Data\\FENS_TRACE_", $s1, PAIR_INTERVAL, "ca.dat")
+	FENS_TRACE__FILE(code, FENS_TRACE_vec0, FENS_TRACE_vec2)
+	
+	FENS_TRACE_Fig_Draw(color_code)
+}
+proc FENS_TRACE__FILE(){ local i localobj savtrace
+	savtrace = new File()
+	savtrace.wopen($s1)
+	for i=0,$o2.size()-1 {
+		savtrace.printf("%g %g\n", $o2.x(i), $o3.x(i))
+	}
+	savtrace.close()
+}
+
+proc FENS_TRACE_Fig_GUI_Save() {
+	PAIR_INTERVAL = $2 
+	
+	FENS_TRACE_Fig_Code("FENS_TRACE_", $s1, PAIR_INTERVAL, "V.eps")
+	FENS_TRACE_g1.printfile(code)
+	FENS_TRACE_Fig_Code("FENS_TRACE_", $s1, PAIR_INTERVAL, "Ca.eps")
+	FENS_TRACE_g2.printfile(code)
+	FENS_TRACE_Fig_Code("FENS_TRACE_", $s1, PAIR_INTERVAL, "DepA.eps")
+	FENS_TRACE_g3.printfile(code)
+	FENS_TRACE_Fig_Code("FENS_TRACE_", $s1, PAIR_INTERVAL, "PD.eps")
+	FENS_TRACE_g4.printfile(code)
+	FENS_TRACE_Fig_Code("FENS_TRACE_", $s1, PAIR_INTERVAL, "W.eps")
+	FENS_TRACE_g5.printfile(code)	
+}
+proc FENS_TRACE_Fig_Draw() { local color_code 
+	color_code = $1
+	FENS_TRACE_vec1_spine.line(FENS_TRACE_g1, FENS_TRACE_vec0, color_code, 1)	
+	FENS_TRACE_vec2.mul(1e3).line(FENS_TRACE_g2, FENS_TRACE_vec0, color_code, 1)	
+	FENS_TRACE_vec3.mul(1e3).line(FENS_TRACE_g2, FENS_TRACE_vec0, 9, 6)	
+	FENS_TRACE_vec4.mul(1e3).line(FENS_TRACE_g2, FENS_TRACE_vec0, 9, 6)	
+	FENS_TRACE_vec5.mul(1e3).line(FENS_TRACE_g2, FENS_TRACE_vec0, 9, 6)
+}
+proc FENS_TRACE_Fig_init() { 
+	execute("system(\"mkdir ./output\")")	
+	execute("system(\"mkdir ./output/Trace.Data\")")	
+	init_run()
+	// ----------------------------------------------------------------
+	
+	FENS_TRACE_Fig_GUI(1)
+	blockGABA = false
+	bUseFeedforward = true
+	bUseFeedback = false
+
+	bBetaAmyloid = false
+	CA1PyramidalCell[0].reloc_syn(nclist.o(iBC_CA1_nc),0)	
+	weight_BC_CA1 = 0.01
+	FENS_TRACE_Fig_Run("FENS.nAD.10nS.0um", 10, 4 )
+	
+	bBetaAmyloid = true
+	CA1PyramidalCell[0].reloc_syn(nclist.o(iBC_CA1_nc),0)	
+	weight_BC_CA1 = 0.01
+	FENS_TRACE_Fig_Run("FENS.AD.10nS.0um", 10, 4 )
+	
+	
+	
+	
+	bBetaAmyloid = true
+	CA1PyramidalCell[0].reloc_syn(nclist.o(iBC_CA1_nc),0)	
+	weight_BC_CA1 = 0.01
+	FENS_TRACE_Fig_Run("FENS.AD.10nS.0um", 10, 4 )
+	
+	bBetaAmyloid = true
+	CA1PyramidalCell[0].reloc_syn(nclist.o(iBC_CA1_nc),0)	
+	weight_BC_CA1 = 0.02
+	FENS_TRACE_Fig_Run("FENS.AD.20nS.0um", 10, 4 )	
+
+	
+	
+
+	bBetaAmyloid = true
+	CA1PyramidalCell[0].reloc_syn(nclist.o(iBC_CA1_nc),100)
+	weight_BC_CA1 = 0.01
+	FENS_TRACE_Fig_Run("FENS.AD.10nS.100um", 10, 4 )
+	
+	bBetaAmyloid = true
+	CA1PyramidalCell[0].reloc_syn(nclist.o(iBC_CA1_nc),400)	
+	weight_BC_CA1 = 0.01
+	FENS_TRACE_Fig_Run("FENS.AD.10nS.400um", 10, 4 )
+
+	
+
+	
+
+	
+	
+	FENS_TRACE_Fig_GUI(1)
+	blockGABA = false
+	bUseFeedforward = true
+	bUseFeedback = false
+
+	bBetaAmyloid = false
+	CA1PyramidalCell[0].reloc_syn(nclist.o(iBC_CA1_nc),0)	
+	weight_BC_CA1 = 0.01
+	FENS_TRACE_Fig_Run("FENS.nAD.10nS.0um", -10, 4 )
+	
+	bBetaAmyloid = true
+	CA1PyramidalCell[0].reloc_syn(nclist.o(iBC_CA1_nc),0)	
+	weight_BC_CA1 = 0.01
+	FENS_TRACE_Fig_Run("FENS.AD.10nS.0um", -10, 4 )
+	
+	
+	
+	
+	bBetaAmyloid = true
+	CA1PyramidalCell[0].reloc_syn(nclist.o(iBC_CA1_nc),0)	
+	weight_BC_CA1 = 0.01
+	FENS_TRACE_Fig_Run("FENS.AD.10nS.0um", -10, 4 )
+	
+	bBetaAmyloid = true
+	CA1PyramidalCell[0].reloc_syn(nclist.o(iBC_CA1_nc),0)	
+	weight_BC_CA1 = 0.02
+	FENS_TRACE_Fig_Run("FENS.AD.20nS.0um", -10, 4 )	
+
+	
+	
+
+	bBetaAmyloid = true
+	CA1PyramidalCell[0].reloc_syn(nclist.o(iBC_CA1_nc),100)
+	weight_BC_CA1 = 0.01
+	FENS_TRACE_Fig_Run("FENS.AD.10nS.100um", -10, 4 )
+	
+	bBetaAmyloid = true
+	CA1PyramidalCell[0].reloc_syn(nclist.o(iBC_CA1_nc),400)	
+	weight_BC_CA1 = 0.01
+	FENS_TRACE_Fig_Run("FENS.AD.10nS.400um", -10, 4 )
+
+	
+	
+	
+	
+	
+}
+
+
+proc FENS_TRACE_Fig_GUI() { 
+	// Postsynaptic Membrane Trace
+	FENS_TRACE_v1 = new VBox(2)
+	FENS_TRACE_v1.intercept(1)
+	FENS_TRACE_g1 = new Graph()
+	if ($1 == 1) {
+		FENS_TRACE_g1.size(1100, 1200,-80,40)
+	} else {
+		FENS_TRACE_g1.size(1090, 1190,-80,40)
+	}		
+	// FENS_TRACE_g1.addexpr("", "CA1PyramidalCell[0].soma.v(0.5)", 1, 1.5)
+	FENS_TRACE_g1.exec_menu("Keep Lines")
+	FENS_TRACE_v1.intercept(0)
+	FENS_TRACE_v1.map("1", 100, 300, 200, 60)
+	
+	// Postsynaptic Calcium Trace
+	FENS_TRACE_v2 = new VBox(2)
+	FENS_TRACE_v2.intercept(1)
+	FENS_TRACE_g2 = new Graph()
+	if ($1 == 1) {
+		FENS_TRACE_g2.size(1100, 1200, 0, 9)
+	} else {
+		FENS_TRACE_g2.size(1090, 1190, 0, 2)
+	}	
+	// FENS_TRACE_g2.addexpr( "", "CA1PyramidalCell[0].ltpltd.xspine  * 1e3" , 1 , 1.5)
+	// FENS_TRACE_g2.addexpr( "" , "CA1PyramidalCell[0].ltpltd.pHC  * 1e3 ", 1, 6)
+	// FENS_TRACE_g2.addexpr( "" , "CA1PyramidalCell[0].ltpltd.aHC  * 1e3", 1, 6)
+	// FENS_TRACE_g2.addexpr( "" , "CA1PyramidalCell[0].ltpltd.theta_v  * 1e3", 1, 6)
+	FENS_TRACE_g2.exec_menu("Keep Lines")
+	FENS_TRACE_v2.intercept(0)
+	FENS_TRACE_v2.map("1", 100, 300 + 80 + 80, 200, 92)
+	
+	// Postsynaptic Depression Agent
+	FENS_TRACE_v3= new VBox(2)
+	FENS_TRACE_v3.intercept(1)
+	FENS_TRACE_g3 = new Graph()
+	FENS_TRACE_g3.size(1100, 1200, 0, 3.5)
+	FENS_TRACE_g3.addexpr( "", "CA1PyramidalCell[0].ltpltd.V", 2, 2)
+	FENS_TRACE_g3.addexpr( "", "CA1PyramidalCell[0].ltpltd.A", 3, 2)
+	FENS_TRACE_g3.addexpr( "", "CA1PyramidalCell[0].ltpltd.B", 5, 2)
+	FENS_TRACE_g3.addexpr( "", "CA1PyramidalCell[0].ltpltd.theta_b", 3, 6)
+	FENS_TRACE_g3.addexpr( "", "CA1PyramidalCell[0].ltpltd.theta_d", 5, 6)
+	FENS_TRACE_v3.intercept(0)
+	FENS_TRACE_v3.map("1", 100, 300 + 80 + 80 + 160 + 110, 200, 145)
+	
+	// Postsynaptic Depression Agent
+	FENS_TRACE_v4= new VBox(2)
+	FENS_TRACE_v4.intercept(1)
+	FENS_TRACE_g4 = new Graph()
+	FENS_TRACE_g4.size(0, tstop, 0, 0.2)
+	FENS_TRACE_g4.addexpr( "", "CA1PyramidalCell[0].ltpltd.P", 2, 2)
+	FENS_TRACE_g4.addexpr( "", "CA1PyramidalCell[0].ltpltd.D", 3, 2)
+	FENS_TRACE_v4.intercept(0)
+	FENS_TRACE_v4.map("1", 380, 300 , 200, 160)
+		
+	// Postsynaptic Depression Agent
+	FENS_TRACE_v5= new VBox(2)
+	FENS_TRACE_v5.intercept(1)
+	FENS_TRACE_g5 = new Graph()
+	FENS_TRACE_g5.size(0, tstop, -1, 1)
+	FENS_TRACE_g5.addexpr( "", "CA1PyramidalCell[0].ltpltd.W", 1, 2)
+	FENS_TRACE_v5.intercept(0)
+	FENS_TRACE_v5.map("1", 380, 300 +160 + 110 , 200, 160)
+
+	graphList[0].append(FENS_TRACE_g1)
+	graphList[0].append(FENS_TRACE_g2)
+	graphList[0].append(FENS_TRACE_g3)
+	graphList[0].append(FENS_TRACE_g4)
+	graphList[0].append(FENS_TRACE_g5)
+}
+

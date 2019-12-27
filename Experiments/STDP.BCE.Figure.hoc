@@ -1,0 +1,311 @@
+true = 1
+bBCETraceFig = true
+
+objref BCEg1, BCEg2, BCEg3, BCEg4, BCEg5
+objref BCEv1, BCEv2, BCEv3, BCEv4, BCEv5
+
+objref BCE2g1, BCE2g2, BCE2g3, BCE2g4, BCE2g5
+objref BCEvec0, BCEvec1_spine,BCEvec1_soma, BCEvec2, BCEvec3, BCEvec4, BCEvec5
+objref BCEvec6, BCEvec7, BCEvec8, BCEvec9, BCEvec10, BCEvec11
+objref BCEvec12, BCEvec13, BCEvec0
+
+
+
+strdef code
+proc BCEFig_Code() {
+	sprint(code, "%s.%s.%d.%s", $s1,$s2,$3, $s4)
+}
+
+proc BCEFig_Run() { local i, color_code localobj savtrace
+	/* BCEFig_Run(Codename as string, PAIR_INTERVAl as integer, Color_code as integer) */
+	P_NUM = 1
+	PAIR_INTERVAL = $2
+	color_code = $3
+	
+	BCEvec0 = new Vector()
+	BCEvec1_spine = new Vector()
+	BCEvec1_soma = new Vector()
+	BCEvec2 = new Vector()
+	BCEvec3 = new Vector()
+	BCEvec4 = new Vector()
+	BCEvec5 = new Vector()
+	BCEvec6 = new Vector()
+	BCEvec7 = new Vector()
+	BCEvec8 = new Vector()
+	BCEvec9 = new Vector()
+	BCEvec10 = new Vector()	
+	BCEvec11 = new Vector()
+	BCEvec12 = new Vector()
+	BCEvec13 = new Vector()
+	
+	BCEvec0.record(&t)
+	BCEvec1_soma.record(&CA1PyramidalCell[0].soma.v(0.5))
+	BCEvec1_spine.record(&CA1PyramidalCell[0].spine.v(0.5))
+	BCEvec2.record(&CA1PyramidalCell[0].ltpltd.xspine)
+	BCEvec3.record(&CA1PyramidalCell[0].ltpltd.pHC)
+	BCEvec4.record(&CA1PyramidalCell[0].ltpltd.aHC)
+	BCEvec5.record(&CA1PyramidalCell[0].ltpltd.theta_v)
+	BCEvec6.record(&CA1PyramidalCell[0].ltpltd.V)
+	BCEvec7.record(&CA1PyramidalCell[0].ltpltd.A)
+	BCEvec8.record(&CA1PyramidalCell[0].ltpltd.B)
+	BCEvec9.record(&CA1PyramidalCell[0].ltpltd.theta_b)
+	BCEvec10.record(&CA1PyramidalCell[0].ltpltd.theta_d)
+	BCEvec11.record(&CA1PyramidalCell[0].ltpltd.P)
+	BCEvec12.record(&CA1PyramidalCell[0].ltpltd.D)
+	BCEvec13.record(&CA1PyramidalCell[0].ltpltd.W)
+
+	RunSTDP()
+	
+	BCEFig_Code("output\\Trace.Data\\BCE", $s1, PAIR_INTERVAL, "V_Spine.dat")
+	BCE_FILE(code, BCEvec0, BCEvec1_spine)
+	BCEFig_Code("output\\Trace.Data\\BCE", $s1, PAIR_INTERVAL, "V_Soma.dat")
+	BCE_FILE(code, BCEvec0, BCEvec1_soma)
+	BCEFig_Code("output\\Trace.Data\\BCE", $s1, PAIR_INTERVAL, "ca.dat")
+	BCE_FILE(code, BCEvec0, BCEvec2)
+	
+	BCEFig_Draw(color_code)
+}
+proc BCE_FILE(){ local i localobj savtrace
+	savtrace = new File()
+	savtrace.wopen($s1)
+	for i=0,$o2.size()-1 {
+		savtrace.printf("%g %g\n", $o2.x(i), $o3.x(i))
+	}
+	savtrace.close()
+}
+
+proc BCEFig_GUI_Save() {
+	PAIR_INTERVAL = $2 
+	
+	BCEFig_Code("BCE", $s1, PAIR_INTERVAL, "V.eps")
+	BCEg1.printfile(code)
+	BCEFig_Code("BCE", $s1, PAIR_INTERVAL, "Ca.eps")
+	BCEg2.printfile(code)
+	BCEFig_Code("BCE", $s1, PAIR_INTERVAL, "DepA.eps")
+	BCEg3.printfile(code)
+	BCEFig_Code("BCE", $s1, PAIR_INTERVAL, "PD.eps")
+	BCEg4.printfile(code)
+	BCEFig_Code("BCE", $s1, PAIR_INTERVAL, "W.eps")
+	BCEg5.printfile(code)	
+}
+proc BCEFig_Draw() { local color_code 
+	color_code = $1
+	BCEvec1_spine.line(BCEg1, BCEvec0, color_code, 1)	
+	BCEvec2.mul(1e3).line(BCEg2, BCEvec0, color_code, 1)	
+	BCEvec3.mul(1e3).line(BCEg2, BCEvec0, 9, 6)	
+	BCEvec4.mul(1e3).line(BCEg2, BCEvec0, 9, 6)	
+	BCEvec5.mul(1e3).line(BCEg2, BCEvec0, 9, 6)
+}
+proc BCEFig_init() { 
+	execute("system(\"mkdir ./output\")")	
+	execute("system(\"mkdir ./output/Trace.Data\")")	
+	init_run()
+	
+	// ----------------------------------------------------------------
+	
+	BCEFig_GUI(1)
+	blockGABA = false
+	bUseFeedforward = true
+	bUseFeedback = false
+	CA1PyramidalCell[0].soma nclist.o(iBC_CA1_nc).syn.loc(0.5) 
+	weight_BC_CA1 = 0.0
+	BCEFig_Run("FF.0nS.0um",10, 1)
+	
+	CA1PyramidalCell[0].soma nclist.o(iBC_CA1_nc).syn.loc(0.5) 
+	weight_BC_CA1 = 0.01
+	BCEFig_Run("FF.10nS.0um",10, 2)
+	
+	CA1PyramidalCell[0].soma nclist.o(iBC_CA1_nc).syn.loc(0.5) 
+	weight_BC_CA1 = 0.02
+	BCEFig_Run("FF.20nS.0um",10, 3)
+	BCEFig_GUI_Save("FF.0.10.20nS.0um", 10)
+
+	BCEFig_GUI(0)	
+	CA1PyramidalCell[0].soma nclist.o(iBC_CA1_nc).syn.loc(0.5) 
+	weight_BC_CA1 = 0.00
+	BCEFig_Run("FF.0nS.0um",-10, 1)
+	
+	CA1PyramidalCell[0].soma nclist.o(iBC_CA1_nc).syn.loc(0.5) 
+	weight_BC_CA1 = 0.01
+	BCEFig_Run("FF.10nS.0um",-10, 2)
+	
+	CA1PyramidalCell[0].soma nclist.o(iBC_CA1_nc).syn.loc(0.5) 
+	weight_BC_CA1 = 0.02
+	BCEFig_Run("FF.20nS.0um",-10, 3)
+	BCEFig_GUI_Save("FF.0.10nS.20nS.0um",-10)
+	
+	// ---------------------------------------------------------------	
+	
+	BCEFig_GUI(1)
+	blockGABA = false
+	bUseFeedforward = false
+	bUseFeedback = true
+	CA1PyramidalCell[0].soma nclist.o(iBC_CA1_nc).syn.loc(0.5) 
+	weight_BC_CA1 = 0.00
+	BCEFig_Run("FB.0nS.0um",10, 1)
+	
+	CA1PyramidalCell[0].soma nclist.o(iBC_CA1_nc).syn.loc(0.5) 
+	weight_BC_CA1 = 0.01
+	BCEFig_Run("FB.10nS.0um",10, 2)
+	
+	CA1PyramidalCell[0].soma nclist.o(iBC_CA1_nc).syn.loc(0.5) 
+	weight_BC_CA1 = 0.02
+	BCEFig_Run("FB.20nS.0um",10, 3)
+	BCEFig_GUI_Save("FB.0.10.20nS.0um", 10)
+	
+	BCEFig_GUI(0)
+	CA1PyramidalCell[0].soma nclist.o(iBC_CA1_nc).syn.loc(0.5) 
+	weight_BC_CA1 = 0.0
+	BCEFig_Run("FB.0nS.0um",-10, 1)	
+	
+	CA1PyramidalCell[0].soma nclist.o(iBC_CA1_nc).syn.loc(0.5) 
+	weight_BC_CA1 = 0.01
+	BCEFig_Run("FB.10nS.0um",-10, 2)
+	
+	CA1PyramidalCell[0].soma nclist.o(iBC_CA1_nc).syn.loc(0.5) 
+	weight_BC_CA1 = 0.02
+	BCEFig_Run("FB.20nS.0um",-10, 3)
+	BCEFig_GUI_Save("FB.0.10.20nS.0um",-10)
+	
+	//-----------------------------------------------------------------
+	//-----------------------------------------------------------------
+	
+	BCEFig_GUI(1)
+	blockGABA = false
+	bUseFeedforward = true
+	bUseFeedback = false
+	CA1PyramidalCell[0].reloc_syn(nclist.o(iBC_CA1_nc),100)	
+	weight_BC_CA1 = 0.00
+	BCEFig_Run("FF.0nS.100um", 10, 1)
+	
+	CA1PyramidalCell[0].reloc_syn(nclist.o(iBC_CA1_nc),100)	
+	weight_BC_CA1 = 0.01
+	BCEFig_Run("FF.10nS.100um", 10, 4 )
+
+		CA1PyramidalCell[0].reloc_syn(nclist.o(iBC_CA1_nc),400)	
+	weight_BC_CA1 = 0.01
+	BCEFig_Run("FF.10nS.400um", 10, 5)
+	BCEFig_GUI_Save("FF.10nS.100um.400um", 10)
+
+	BCEFig_GUI(0)
+		CA1PyramidalCell[0].reloc_syn(nclist.o(iBC_CA1_nc),100)	
+	weight_BC_CA1 = 0.0
+	BCEFig_Run("FF.0nS.100um", -10, 1)	
+	
+	CA1PyramidalCell[0].reloc_syn(nclist.o(iBC_CA1_nc),100)	
+	weight_BC_CA1 = 0.01
+	BCEFig_Run("FF.10nS.100um", -10, 4)
+
+	CA1PyramidalCell[0].reloc_syn(nclist.o(iBC_CA1_nc),400)	
+	weight_BC_CA1 = 0.01
+	BCEFig_Run("FF.10nS.400um", -10, 5)
+	BCEFig_GUI_Save("FF.10nS.100um.400um",-10)
+	
+	
+	
+	BCEFig_GUI(1)
+	blockGABA = false
+	bUseFeedforward = false
+	bUseFeedback = true
+	CA1PyramidalCell[0].reloc_syn(nclist.o(iBC_CA1_nc),100)	
+	weight_BC_CA1 = 0.0
+	BCEFig_Run("FB.10nS.100um", 10, 1 )	
+	
+	CA1PyramidalCell[0].reloc_syn(nclist.o(iBC_CA1_nc),100)	
+	weight_BC_CA1 = 0.01
+	BCEFig_Run("FB.10nS.100um", 10, 4)
+	
+	CA1PyramidalCell[0].reloc_syn(nclist.o(iBC_CA1_nc),400)	
+	weight_BC_CA1 = 0.01
+	BCEFig_Run("FB.10nS.400um", 10, 5)
+	BCEFig_GUI_Save("FB.10nS.100um.400um", 10)
+
+	BCEFig_GUI(0)
+	CA1PyramidalCell[0].reloc_syn(nclist.o(iBC_CA1_nc),100)	
+	weight_BC_CA1 = 0.0
+	BCEFig_Run("FB.10nS.100um", -10, 1)	
+	
+	CA1PyramidalCell[0].reloc_syn(nclist.o(iBC_CA1_nc),100)	
+	weight_BC_CA1 = 0.01
+	BCEFig_Run("FB.10nS.100um", -10, 4)
+	
+	CA1PyramidalCell[0].reloc_syn(nclist.o(iBC_CA1_nc),400)	
+	weight_BC_CA1 = 0.01
+	BCEFig_Run("FB.10nS.400um", -10, 5)
+	BCEFig_GUI_Save("FB.10nS.100um.400um",-10)
+
+		
+}
+
+
+proc BCEFig_GUI() { 
+	// Postsynaptic Membrane Trace
+	BCEv1 = new VBox(2)
+	BCEv1.intercept(1)
+	BCEg1 = new Graph()
+	if ($1 == 1) {
+		BCEg1.size(1100, 1200,-80,40)
+	} else {
+		BCEg1.size(1090, 1190,-80,40)
+	}		
+	// BCEg1.addexpr("", "CA1PyramidalCell[0].soma.v(0.5)", 1, 1.5)
+	BCEg1.exec_menu("Keep Lines")
+	BCEv1.intercept(0)
+	BCEv1.map("1", 100, 300, 200, 60)
+	
+	// Postsynaptic Calcium Trace
+	BCEv2 = new VBox(2)
+	BCEv2.intercept(1)
+	BCEg2 = new Graph()
+	if ($1 == 1) {
+		BCEg2.size(1100, 1200, 0, 9)
+	} else {
+		BCEg2.size(1090, 1190, 0, 2)
+	}	
+	// BCEg2.addexpr( "", "CA1PyramidalCell[0].ltpltd.xspine  * 1e3" , 1 , 1.5)
+	// BCEg2.addexpr( "" , "CA1PyramidalCell[0].ltpltd.pHC  * 1e3 ", 1, 6)
+	// BCEg2.addexpr( "" , "CA1PyramidalCell[0].ltpltd.aHC  * 1e3", 1, 6)
+	// BCEg2.addexpr( "" , "CA1PyramidalCell[0].ltpltd.theta_v  * 1e3", 1, 6)
+	BCEg2.exec_menu("Keep Lines")
+	BCEv2.intercept(0)
+	BCEv2.map("1", 100, 300 + 80 + 80, 200, 92)
+	
+	// Postsynaptic Depression Agent
+	BCEv3= new VBox(2)
+	BCEv3.intercept(1)
+	BCEg3 = new Graph()
+	BCEg3.size(1100, 1200, 0, 3.5)
+	BCEg3.addexpr( "", "CA1PyramidalCell[0].ltpltd.V", 2, 2)
+	BCEg3.addexpr( "", "CA1PyramidalCell[0].ltpltd.A", 3, 2)
+	BCEg3.addexpr( "", "CA1PyramidalCell[0].ltpltd.B", 5, 2)
+	BCEg3.addexpr( "", "CA1PyramidalCell[0].ltpltd.theta_b", 3, 6)
+	BCEg3.addexpr( "", "CA1PyramidalCell[0].ltpltd.theta_d", 5, 6)
+	BCEv3.intercept(0)
+	BCEv3.map("1", 100, 300 + 80 + 80 + 160 + 110, 200, 145)
+	
+	// Postsynaptic Depression Agent
+	BCEv4= new VBox(2)
+	BCEv4.intercept(1)
+	BCEg4 = new Graph()
+	BCEg4.size(0, tstop, 0, 0.2)
+	BCEg4.addexpr( "", "CA1PyramidalCell[0].ltpltd.P", 2, 2)
+	BCEg4.addexpr( "", "CA1PyramidalCell[0].ltpltd.D", 3, 2)
+	BCEv4.intercept(0)
+	BCEv4.map("1", 380, 300 , 200, 160)
+		
+	// Postsynaptic Depression Agent
+	BCEv5= new VBox(2)
+	BCEv5.intercept(1)
+	BCEg5 = new Graph()
+	BCEg5.size(0, tstop, -1, 1)
+	BCEg5.addexpr( "", "CA1PyramidalCell[0].ltpltd.W", 1, 2)
+	BCEv5.intercept(0)
+	BCEv5.map("1", 380, 300 +160 + 110 , 200, 160)
+
+	graphList[0].append(BCEg1)
+	graphList[0].append(BCEg2)
+	graphList[0].append(BCEg3)
+	graphList[0].append(BCEg4)
+	graphList[0].append(BCEg5)
+}
+

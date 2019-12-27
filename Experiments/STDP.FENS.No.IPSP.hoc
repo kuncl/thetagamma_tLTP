@@ -1,0 +1,73 @@
+objref SNI_grpSTDP
+
+proc SNI_init() { local i, color_code localobj strpath
+	execute("system(\"mkdir ./output\")")	
+
+	
+	// default = delay_BC_CA1
+	SNI_GUI()
+	blockGABA = true
+
+	SNI_def_weight = weight_BC_CA1
+	
+	color_code =  0
+	// for (i = 0.0; i <=1.0 ; i =i +0.5) {
+	
+	color_code= color_code + 1
+	SNI_body(0.0, color_code)
+	
+	
+	strpath= new myString()
+	strpath.sprintf("output\\%d_STDP_No_Inh.eps",Simul_ID)
+	
+	SNI_grpSTDP.printfile(strpath.s)
+}
+
+proc SNI_body() { local color_code1
+	weight_BC_CA1 = SNI_def_weight * $1
+	
+	// print nclist.o(iBC_CA1_nc).weight, "Weight ¾ê³Ä?!!!"
+	bStdpFig = false
+	bCA1Burst = false
+	color_code = $2
+	bSTDPoutputFig = false
+	STDP_Curve()
+	
+	STDP_WeightsEPSC.line(SNI_grpSTDP,STDP_Dts, color_code , color_code % 9 + 1)
+	SNI_grpSTDP.size(-100, 100, -100, 100)
+
+	SNI_out($1)
+	
+	weight_BC_CA1 = SNI_def_weight
+	// print nclist.o(iBC_CA1_nc).weight, "Weight ¾ê¶ó°í!!!"
+}
+
+proc SNI_printVec() {local i localobj fp
+	fp = new File()
+	fp.wopen($s1)
+	for (i=0;i<$o2.size();i=i+1) {
+		fp.printf("%g %g\r\n",$o2.x[i], $o3.x[i])
+	}
+	fp.close()
+}
+
+strdef SNI_str
+proc SNI_out() { localobj strdir, strpath
+		
+	strdir = new myString("output")
+	strpath = new myString()	
+	
+	sprint(strpath.s, "%s\\%d_STDP_No_Inh_epsc.dat", strdir.s, Simul_ID, $1)
+	SNI_printVec(strpath.s, STDP_Dts,  STDP_WeightsEPSC)
+
+	sprint(strpath.s, "%s\\%d_STDP_No_Inh_Readout.dat", strdir.s, Simul_ID, $1)
+	SNI_printVec(strpath.s, STDP_Dts,  STDP_ReadOut)
+			
+}
+
+proc SNI_GUI() { 
+	SNI_grpSTDP = new Graph()
+	SNI_grpSTDP.exec_menu("Keep Lines")
+	SNI_grpSTDP.size(-100,100,-100,100)
+
+}

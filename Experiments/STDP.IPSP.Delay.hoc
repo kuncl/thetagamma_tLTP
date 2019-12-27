@@ -1,0 +1,118 @@
+begintemplate myString
+	public s
+	strdef s
+	
+	public set, get, sprintf
+	
+	proc init() {
+		if (numarg() > 0 ) {
+			sprint(s, $s1)
+		} else {
+			sprint(s, "")
+		} 
+	}
+	
+	proc set() {
+		sprintf($s1)
+	}
+	
+	proc sprintf() {
+		if (numarg() == 1) {
+			sprint(s, $s1)
+		} else if  (numarg() == 2) {
+			sprint(s, $s1, $2)
+		} else if  (numarg() == 3) {
+			sprint(s, $s1, $2, $3)
+		} else if  (numarg() == 4) {
+			sprint(s, $s1, $2, $3, $4)
+		} else if  (numarg() == 5) {
+			sprint(s, $s1, $2, $3, $4, $5)
+		} else if  (numarg() == 6) {
+			sprint(s, $s1, $2, $3, $4, $5, $6)
+		} else {
+			print "Number of Arguments must be below 6"
+		}
+	}	
+	
+endtemplate myString
+
+objref SID_grpSTDP
+// STDP IPSP Delay 별 차이SIW
+proc SID_init(){ local i, color_code localobj strpath
+	// default = delay_BC_CA1
+	SID_GUI()
+	
+	SID_def_delay_CA3_BC = SC_DELAY
+	SID_def_delay_BC_CA1 = delay_BC_CA1
+	
+	// for (i = 0; i <= 2 ; i =i +1) {
+	color_code = 0
+	for (i = 0; i <= 20 ; i =i +5) {
+		color_code  = color_code+1
+		SID_body(i, color_code)
+	}
+	
+	strpath= new myString()
+	strpath.sprintf("output\\STDP.delay\\%d.STDP.delay.pool.eps",Simul_ID)
+	
+	SID_grpSTDP.printfile(strpath.s)
+} 
+proc SID_adjust() {
+	// if ($1 < 1 ) { 
+		// nclist.o(iCA3_BC_nc).delay = SID_def_delay_CA3_BC + $i
+	// } else {
+		nclist.o(iBC_CA1_nc).delay = SID_def_delay_BC_CA1 + $1	
+	// }
+}
+proc SID_restore() {
+	// nclist.o(iCA3_BC_nc).delay = SID_def_delay_CA3_BC
+	nclist.o(iBC_CA1_nc).delay = SID_def_delay_BC_CA1
+	
+}
+proc SID_body() { local color_code
+	SID_adjust($1)
+	
+	// print nclist.o(iBC_CA1_nc).delay, " 딜레이 너냐?"
+	// Simul_ID = Simul_ID + 1
+	bStdpFig = false
+	color_code = $2	
+	print color_code
+	bSTDPoutputFig = false
+	
+	STDP_Curve()	
+	 
+	STDP_WeightsEPSC.line(SID_grpSTDP,STDP_Dts, color_code , color_code % 9 + 1)
+	SID_grpSTDP.size(-100,100,-100,100)
+
+	SID_out($1)
+	
+	
+	SID_restore() 
+	// print nclist.o(iBC_CA1_nc).delay , " 나 맞거든~"
+}
+
+proc printVec() { localobj fp
+	fp = new File()
+	fp.wopen($s1)
+	$o2.printf(fp)
+	fp.close()
+}
+
+strdef SID_str
+proc SID_out() { localobj strdir, strpath
+		
+	strdir = new myString("output\\STDP.delay")
+	strpath = new myString()	
+	
+	sprint(strpath.s, "%s\\%d_delay_epsc_%dms.dat", strdir.s, Simul_ID, $1)
+	printVec(strpath.s, STDP_WeightsEPSC)
+	sprint(strpath.s, "%s\\%d_delay_readout_%dms.dat", strdir.s, Simul_ID, $1)
+	printVec(strpath.s, STDP_ReadOut)
+}
+
+proc SID_GUI() { 
+	SID_grpSTDP = new Graph()
+	SID_grpSTDP.exec_menu("Keep Lines")
+		SID_grpSTDP.size(-100,100,-100,100)
+
+}

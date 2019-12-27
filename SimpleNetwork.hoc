@@ -1,0 +1,210 @@
+// objref StdpBatch
+// StdpBatch = new File()
+// if (StdpBatch.ropen("STDPBatch2.dat") == 1) {
+	// while (!StdpBatch.eof()){
+
+		// bBatchSTDP = 1
+		// PAIR_INTERVAL = StdpBatch.scanvar()
+		// StdpBatch.unlink()
+		// StdpBatch.close()
+		
+	// }		
+// }
+
+// Simple STDP network : STDP and resonance, development
+// CA1 PC, CA3 PC, BSC
+
+// Code from V. Cutsuridis, S. Cobb and B.P. Graham, 2009
+{load_file("./Libs/common.hoc")}
+{load_file("./Libs/graphLib.hoc")}
+
+
+{load_file("ca1_pyramidal.hoc")}
+{load_file("ca3_pyramidal.hoc")}
+{load_file("basket_cell.hoc")}
+
+{load_file("stim_cell.hoc")}
+
+////////////////////////////////////////
+//// Simulation Protocol 
+///////////////////////////////////////
+
+
+//from ref.1
+STARTDEL = 50	// msecs
+THETA = 250	// msecs (5 Hz)
+GAMMA = 25	// msecs (40 Hz)
+ECCA3DEL = 9	// msecs
+
+SIMDUR = STARTDEL + (THETA*8)	// simulation duration (msecs)
+//end ref.1
+
+
+CA3_STIM = 0.6
+CA3_DUR = 2
+// CA1_STIM = 1.0 //0.35
+CA1_STIM = 0.6 //0.35
+CA1_STIM_DUR = 2
+CA1_INHIB = 0.1
+dCA1_BURST_FREQ = 100
+dCA1_BURST_NUM = 3
+CA1_BURST_FREQ = dCA1_BURST_FREQ
+CA1_BURST_NUM = dCA1_BURST_NUM
+
+P_FREQ =1 //5
+P_NUM = 30 //Pairing Counts 
+P_INTERVAL = 1000 / P_FREQ
+
+T_STARTTIME = 100 // (ms)
+RESTTIME = 100
+ENDTIME = 100
+STIM_START = 0
+
+
+// Brief Simulation
+// P_NUM = 1 //Pairing Counts 
+// T_STARTTIME = 200 // (ms)
+// P_INTERVAL = 1000 / P_FREQ
+// ENDTIME = 200
+
+
+dt = 0.025 // 40kHZ
+// dt = 0.05 // 20kHZ
+dt = 0.1 // 10kHZ
+// dt = 0.2 // 5kHZ
+
+// dt = 0.5 // 2kHZ
+
+steps_per_ms = 1 / dt
+
+bJuvenile = false
+blockGABA = true
+bSaveTrace = false
+bBetaAmyloid = false
+bBatchSTDP = false
+bCA1Burst = false
+
+
+
+
+
+sprint(string, "system(\"mkdir Figures\")")
+execute(string)
+
+
+objref SimulCodeFp
+SimulCodeFp = new File()
+Simul_ID = 0
+if (SimulCodeFp.ropen("SimulFootPrint.dat") == 1) {
+	Simul_ID = SimulCodeFp.scanvar()+1
+}
+SimulCodeFp.close()
+
+
+PAIR_INTERVAL = -10
+	
+// Simul_ID = 520
+
+// bBatchSTDP = true
+
+// bStdpFig = false
+bStdpFig = true
+
+// blockGABA = false
+blockGABA = true
+
+// bCA1Burst = true
+// bBetaAmyloid = true
+
+// bUseFeedforward = false
+// bUseFeedback = true
+bUseFeedforward = true
+bUseFeedback = false
+
+SimulCodeFp = new File()
+if (SimulCodeFp.wopen("SimulFootPrint.dat") == 1) {
+	SimulCodeFp.printf("%d",Simul_ID)	
+}
+SimulCodeFp.close()
+
+
+
+
+//
+//// Define Cell 
+//
+
+//////////////////////////////////
+// Step 1: Define the cell classes
+//////////////////////////////////
+
+
+//Real Cell
+nCA3 = 1
+nCA1 = 1
+nBC = 1
+
+//Stim
+nEC3 = 0 // EC-CA1 (EC3)
+nEC2 = 1 // EC-CA3 (EC2)
+nDG = 0 // DG input to CA3
+
+ncell = nCA1+nCA3+nBC	// total number of cells
+nstim = nEC3 + nEC2 + nDG		// total number of inputs
+ntot = 	ncell + nstim		// total number
+
+print "Total cells : " 
+print ntot
+
+//////////////////////////////////////////////////////////////
+//Cell ID Ordering
+//////////////////////////////////////////////////////////////
+iCA1 = 0
+iCA3 = nCA1
+iBC = nCA1 + nCA3
+iEC3 = nCA1 + nCA3 + nBC				// EC3 -> CA1
+iEC2 = nCA1 + nCA3 + nBC + nEC3		// EC2 -> CA3
+iDG = nCA1 + nCA3 + nBC + nEC3 + nEC2	// DG -> CA3 input
+
+
+objref cells, nclist // cells will be a List that holds 
+  // all instances of network cells that exist on this host
+  // nclist will hold all NetCon instances that exist on this host
+  // and connect network spike sources to targets on this host (nclist)
+  // ncslist holds NetConns from input spike sources (NetStims)
+
+objref stims, stimlist, cuelist, EClist	// phasic and tonic cell stimulation
+
+
+objref gidvec  // to associate gid and position in cells List
+  // useful for setting up connections and reporting connectivity
+
+
+
+proc custominit() {
+	CA1PyramidalCell[0].current_balance(CA1PyramidalCell[0].Vrest)
+	CA3PyramidalCell[0].current_balance(CA3PyramidalCell[0].Vrest)
+
+	finitialize()
+}
+proc init() {
+    finitialize(v_init)
+	custominit()
+	fcurrent()
+	frecord_init()
+	// CA1PyramidalCell[0].ltpltd.tInit = T_STARTTIME
+}
+
+caflag = 0
+proc advance() {
+    fadvance()
+	if (t> 170 && caflag ==0 ) {
+		caflag = 1
+		print (CA1PyramidalCell[0].pre_list.o[i_CA3_CA1_EA].i  + CA1PyramidalCell[0].pre_list.o[i_CA3_CA1_EN].i) * 1e3, "pA"
+	}
+}
+
+  
+{load_file("network.setting.hoc")}
+// {load_file("graph.hoc")}
+

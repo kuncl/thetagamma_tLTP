@@ -1,0 +1,87 @@
+objref STDP_FENS_cavec, STDP_FENS_vvec, STDP_gca, STDP_gv
+
+proc STDP_FENS_Cal_init() {
+
+	bStdpFig = true
+	blockGABA = false
+
+	bUseFeedforward = true
+	bUseFeedback = false
+	
+	P_NUM = 1
+	
+	STDP_gca = new Graph()
+	STDP_gca.size(-50, 50, 0, 10)
+	STDP_gca.exec_menu("Keep Lines")
+	STDP_gca.yaxis(2)
+
+	
+	STDP_gv = new Graph()
+	STDP_gv.size(-50, 50, 0, 100)
+	STDP_gv.exec_menu("Keep Lines")
+	STDP_gv.yaxis(2)
+
+	
+	bBetaAmyloid = false	
+	STDP_FENS_Cal_body(3)
+	
+	bBetaAmyloid = true
+	STDP_FENS_Cal_body(2) 
+	
+	STDP_gca.printfile("FENS.Calcium.Peak.Interval.eps")
+	STDP_gv.printfile("FENS.V.Peak.Interval.eps")
+	
+}
+
+proc STDP_FENS_Cal_body() {
+	color_code_ = $1
+	
+	STDP_FENS_STDP_Curve(color_code_)	
+	
+	STDP_FENS_cavec.line(STDP_gca, STDP_Dts, color_code_, 1)
+	STDP_FENS_vvec.line(STDP_gv, STDP_Dts, color_code_, 1)
+}	
+
+proc STDP_FENS_STDP_Curve() { local i, capeak localobj timevec, cavec, o, savdata, tempmatrix
+	color_code_ = $1
+	if (iStdpRunSimple == true) {
+		STDP_Simple()
+	} else {
+		STDP_Detail()
+	}
+	
+	init_run()
+	o = CA1PyramidalCell[0]
+		
+		
+	STDP_Dts = new Vector()
+	STDP_WeightsEPSC = new Vector()	
+	STDP_ReadOut = new Vector()
+	STDP_FENS_cavec = new Vector()
+	STDP_FENS_vvec = new Vector()
+	
+	for (i=0; i<lStdpIntervals.size(); i = i + 1) {
+		PAIR_INTERVAL = lStdpIntervals.x(i)
+		
+		sprint(sStdpTitle,"STDP DT : %d \n", PAIR_INTERVAL)
+		print sStdpTitle
+		
+		RunSTDP()
+	
+		STDP_WeightsEPSC.append(STDP_EPSC_Change)
+		STDP_ReadOut.append(o.ltpltd.Avg_W)
+		STDP_Dts.append(PAIR_INTERVAL)
+		
+		capeak =  CA1PyramidalCell[0].spine.camax_dsca(0.5)*1e3
+		vpeak =  CA1PyramidalCell[0].spine.vmax_ds(0.5)-CA1PyramidalCell[0].Vrest
+		STDP_FENS_cavec.append(capeak)
+		STDP_FENS_vvec.append(vpeak)
+		// STDP_g.mark(PAIR_INTERVAL, capeak, "o" , 6, color_code_, 1)
+	}
+
+	if (bSTDPoutputFig == true ) {
+		gIDX_STDP_EPSC = new_graph(-100,100)
+		STDP_WeightsEPSC.line(get_graph(gIDX_STDP_EPSC),STDP_Dts,2,2)
+		get_graph(gIDX_STDP_EPSC).size(-100,100,-100,100)
+	}
+}

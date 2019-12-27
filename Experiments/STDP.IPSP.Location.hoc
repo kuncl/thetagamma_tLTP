@@ -1,0 +1,81 @@
+objref SIL_grpSTDP
+
+
+
+proc SIL_init(){ local i, color_code localobj strpath, SIL_locs
+	execute("system(\"mkdir ./output\")")
+	execute("system(\"mkdir ./output/STDP.location\")")
+	
+	SIL_GUI()
+	blockGABA = false
+
+	SIL_def_inh_loc = 0	//120um
+	
+	SIL_locs = new Vector()
+	SIL_locs.append(0)
+	SIL_locs.append(50)
+	SIL_locs.append(100)
+	// SIL_locs.append(150)	
+	SIL_locs.append(200)	
+	SIL_locs.append(300)	
+	SIL_locs.append(400)
+	
+	color_code = 0
+	// for (i = 0; i < 6 ; i =i +1) {
+	// for (i = 0; i <=1; i =i +1) {
+	i=0
+		color_code  = i+1
+		SIL_body(SIL_locs.x(i), color_code)
+	// }
+	
+	strpath= new myString()
+	strpath.sprintf("output\\STDP.location\\%d.STDP.location.pool.eps",Simul_ID)
+	
+	SIL_grpSTDP.printfile(strpath.s)
+} 
+proc SIL_body() { local color_code
+	CA1PyramidalCell[0].reloc_syn(nclist.o(iBC_CA1_nc),$1)
+	SIL_locCode = $1
+
+	bCA1Burst = false
+	bStdpFig = false	
+	color_code = $2	
+	bSTDPoutputFig = false
+	
+	STDP_Curve()	
+	 
+	STDP_WeightsEPSC.line(SIL_grpSTDP, STDP_Dts, color_code , color_code % 9 + 1)
+	SIL_grpSTDP.size(-100,100,-100,100)
+
+	SIL_out($1)
+	
+	
+	CA1PyramidalCell[0].reloc_syn(nclist.o(iBC_CA1_nc), SIL_def_inh_loc) 
+}
+
+proc SIL_printVec() {local i localobj fp
+	fp = new File()
+	fp.wopen($s1)
+	for (i=0;i<$o2.size();i=i+1) {
+		fp.printf("%g %g\r\n",$o2.x[i], $o3.x[i])
+	}
+	fp.close()
+}
+
+strdef SIL_str
+proc SIL_out() { localobj strdir, strpath
+		
+	strdir = new myString("output\\STDP.location")
+	strpath = new myString()	
+	
+	sprint(strpath.s, "%s\\%d_location_epsc_%dum.dat", strdir.s, Simul_ID, SIL_locCode)
+	SIL_printVec(strpath.s, STDP_Dts, STDP_WeightsEPSC)
+	sprint(strpath.s, "%s\\%d_location_readout_%dum.dat", strdir.s, Simul_ID, SIL_locCode)
+	printVec(strpath.s, STDP_ReadOut)
+}
+
+proc SIL_GUI() { 
+	SIL_grpSTDP = new Graph()
+	SIL_grpSTDP.exec_menu("Keep Lines")
+	SIL_grpSTDP.size(-100,100,-100,100)
+}

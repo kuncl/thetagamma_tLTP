@@ -1,0 +1,232 @@
+//////////////////////////////////////////////////////////////
+// Steps 2 and 3 are to create the cells and connect the cells
+//////////////////////////////////////////////////////////////
+
+C_P = 1  // probability of excitatory connections received by each CA1 PC
+			// from CA3 inputs (1 gives full connectivity)
+		 
+
+// Simple connectivity
+n_CA3_CA1 = nCA3	// # of connections received by each CA1 from CA3 cells (excit)
+n_EC3_CA1 = nEC3	// # of connections received by each CA1 from EC cells (excit)
+n_CA1_CA1 = 1		// # of connections received by each PC from other PCs (excit)
+
+
+n_EC2_CA3 = nEC2	// # of connections received by each CA3 from EC cells (excit)
+n_DG_CA3 = nDG	// # of connections received by each CA3 from DG cells (excit)
+
+n_BC_CA1 = nBC	// # of connections received by each PC from basket cells (inhib)
+
+n_CA3_BC = nCA3
+n_CA1_BC = 1
+n_EC3_BC = nEC3
+n_BC_BC = 1
+
+
+
+// Synapse indices
+// onto CA1 PCs	(synapse _ id) 
+i_CA3_CA1_EA = 0	// CA3 AMPA excit to soma
+i_CA3_CA1_EN = 1	// CA3 NMDA excit to soma
+i_CA1_CA1_E = 2	// CA1 current AMPA excit to soma
+i_BC_CA1_I = 3	// Basket cell inhib to soma
+
+// onto CA3 PCs
+i_EC2_CA3_E = 0	// EC(EC2) AMPA excit to medium SLM (2 of)
+i_DG_CA3_E = 1	// DG AMPA excit to medium SR
+
+// onto BC
+i_EC3_BC_E = 0
+i_CA3_BC_E = 1
+i_CA1_BC_E = 2
+i_BC_BC_I = 3
+
+
+
+// Synapse Property
+// Onto CA1
+
+
+// Fixed weight for AMPA, NMDA 
+SC_DELAY = 3
+amplifier_CA3_CA1 = 1
+delay_CA3_CA1 = SC_DELAY	 // CA3  from cue delay
+weight_CA3_CA1 = 1 * amplifier_CA3_CA1			//  from CA3 Pyramidal cell, excitatory weights (AMPA)
+weight_CA3_CA1_NMDA = 1 * amplifier_CA3_CA1 //  from CA3 Pyramidal cell, excitatory weights (NMDA)
+
+
+weight_CA3_BC = 0.03  // 2น่ Feed-forward
+delay_CA3_BC = SC_DELAY
+
+
+
+
+weight_CA1_CA1 = 0.001
+delay_CA1_CA1 = 1
+
+weight_CA1_BC = 0.01  // 10 nS
+delay_CA1_BC = 1 + 0.8
+
+
+
+weight_BC_CA1_2 =  0.0014  * 14 // 6.68 mV
+weight_BC_CA1_3 =  0.0014  * 21 // 7.55 mV
+
+
+
+weight_BC_CA1_1 =  0.01 // 10 nS
+weight_BC_CA1 = weight_BC_CA1_1
+
+
+delay_BC_CA1 = 1
+
+weight_BC_BC = 0.001
+delay_BC_BC = 1
+
+// Onto CA3
+// TODO : Need to modify parameter
+weight_EC2_CA3 = 0.0005
+delay_EC2_CA3 = 1
+
+weight_DG_CA3 = 0.0005
+delay_DG_CA3 = 1
+
+weight_EC3_BC = 0.00015
+delay_EC3_BC = 1
+// END TODO
+
+// Make the network
+objref nmda_con
+proc mknet() { localobj nc
+  print "Make cells..."
+  mkcells()  // create the cells
+  
+  print "Connect cells..."  
+  nclist = new List()  
+  
+	// connectcells(nTA, iTA, nCA1, iCA1, TA_CA1, E_TA, delay, weight) ? Input same ?
+	// 
+	// 	number of targets, first target cell, 
+	//		number of source cells, first source cell, 
+	//		convergence, first synapse,
+	//		last synapse, connection delay, weight
+
+  print "	on CA1..."
+  // CA3 to CA1	AMPA
+  // weight_CA3_CA1 = 0
+  print "       Connection : CA3 -> CA1 (AMPA) "
+  nc = connectcells(nCA1, iCA1, nCA3, iCA3, n_CA3_CA1, i_CA3_CA1_EA, i_CA3_CA1_EA, delay_CA3_CA1, weight_CA3_CA1)
+  nclist.append(nc)
+  iCA3_CA1_AMPA_nc = nclist.count() - 1
+	
+  // CA3 to CA1 NMDA
+  // weight_CA3_CA1_NMDA = 0
+  print "       Connection : CA3 -> CA1 (NMDA) "
+  connectcells(nCA1, iCA1, nCA3, iCA3, n_CA3_CA1, i_CA3_CA1_EN, i_CA3_CA1_EN, delay_CA3_CA1, weight_CA3_CA1_NMDA)
+  nclist.append(nc)
+  iCA3_CA1_NMDA_nc = nclist.count() - 1
+	
+  //number of targets ($1), first target cell ($2), umber of source cells ($3), first source cell ($4), 
+  //	C_P($5),  STDP_ID(TARGET)($6), NMDA_ID(TARGET)($7), STDP_Weight($8)
+  // CA1 to CA1 Recurrent
+  //connectcells(nCA1, iCA1, nCA1, iCA1, n_CA1_CA1, i_CA1_CA1_E, i_CA1_CA1_E, delay_CA1_CA1, weight_CA1_CA1)
+  
+  // BC to CA1
+  print "       Connection : BC -> CA1 "
+  nc = connectcells(nCA1, iCA1, nBC, iBC, n_BC_CA1, i_BC_CA1_I, i_BC_CA1_I, delay_BC_CA1,  weight_BC_CA1)
+  nclist.append(nc)
+  iBC_CA1_nc = nclist.count() - 1
+	
+  // EC(EC3) to CA1
+  //connectcells(~~)
+  
+  print "	on CA3..."
+  // EC(EC2) to CA3
+  //connectcells(nCA3, iCA3, nEC2, iEC2, n_EC2_CA3, i_EC2_CA3_E, i_EC2_CA3_E,  delay_EC2_CA3, weight_EC2_CA3)
+  // DG to CA3
+  
+  
+  print "   on Basket Cell..."
+  // CA3 to BC (Feedforward)
+  print "       Connection : CA3 -> BC "
+  nc = connectcells(nBC, iBC, nCA3, iCA3, n_CA3_BC, i_CA3_BC_E, i_CA3_BC_E, delay_CA3_BC, weight_CA3_BC)
+  nclist.append(nc)
+  iCA3_BC_nc = nclist.count() - 1
+  
+  // CA1 to BC (Feedback)
+  print "       Connection : CA1 -> BC "
+  nc = connectcells(nBC, iBC, nCA1, iCA1, n_CA1_BC, i_CA1_BC_E, i_CA1_BC_E, delay_CA1_BC, weight_CA1_BC)
+  nclist.append(nc)
+  iCA1_BC_nc = nclist.count() - 1
+  
+  // BC to BC
+  // connectcells(nBC,iBC,nBC,iBC,n_BC_BC,i_BC_BC_I,i_BC_BC_I,delay_BC_BC,weight_BC_BC)
+  
+  print " All Connection Maded"  
+   
+}
+
+
+// creates the cells and appends them to a List called cells
+// argument is the number of cells to be created
+proc mkcells() {local i,j  localobj cell, nc, nil
+  cells = new List()
+  gidvec = new Vector()
+  for i=0, ntot-1 {	
+    if (i < iCA3) {
+      cell = new CA1PyramidalCell(T_STARTTIME)	// CA1 Pyramidal Cell	  
+    } else if (i < iBC) {
+      cell = new CA3PyramidalCell()	// CA3 Pyramidal Cell
+    } else if (i < iEC3) {
+      cell = new BasketCell()	// Basket cell
+    } else if (i < iEC2) {
+      cell = new StimCell()	// EC (EC3) input - CA3
+    } else if (i < iDG) {
+	  cell = new StimCell() // EC (EC2) input - CA1
+	} else {
+      cell = new StimCell()	// DG input - CA3
+    } 
+    cells.append(cell)
+    gidvec.append(i)
+  }
+}
+
+
+// @2011.06.06 
+
+// Target cells receive "convergence" number of inputs from
+// the pool of source cells (only one input per source cell at most)
+// ("convergence" not reached if no. of sources < convergence)
+// connectcells(number of targets ($1), first target cell ($2), 
+//		number of source cells ($3), first source cell ($4), 
+//		convergence ($5), first synapse ($6),
+//		last synapse ($7), connection delay, weight)
+// appends the NetCons to a List called nclist
+
+obfunc connectcells() { local i, j, gid, nsyn localobj syn, nc
+  // initialize the pseudorandom number generator	
+  
+  for iTar = $2, ($1+$2 -1) {
+	for iSrc = $4, ($3+$4 -1) {
+		nsyn = 0
+		for iSyn = $6, $7 { 		
+			if (nsyn / ($1 * $3) < $5) {
+				syn = cells.object(iTar).pre_list.object(iSyn)
+				nc = cells.object(iSrc).connect2target(syn)
+				
+				nclist.append(nc)
+				nc.delay = $8
+				nc.weight = $9
+				
+				print syn, nc, "connected"
+				nsyn +=1
+			}
+		}		
+	}
+  } 
+  
+	return nc
+}
+
+//Pre-defined weights
+mknet()

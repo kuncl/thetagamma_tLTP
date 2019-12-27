@@ -1,0 +1,18 @@
+objref rn_zz, rn_cell
+
+rn_zz = new Impedance()
+func rn_f() { local rn
+	init()
+	rn_cell.soma rn_zz.loc(0.5)  // sets origin for impedance calculations to middle of soma
+	rn_zz.compute(0)  // DC input R
+	rn_cell.soma { rn = rn_zz.input(0.5) }  // rn is input R at middle of the soma
+	   
+	return rn
+}
+  
+proc rn() { local rn_cell_value
+	rn_cell = $o1
+	
+	rn_cell_value = rn_f()
+	print "DC input resistance of cell is " , rn_cell_value, "megohms"	
+}

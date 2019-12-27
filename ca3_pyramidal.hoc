@@ -1,0 +1,243 @@
+// Cell Template
+// CA3 PyramidalCell 
+
+
+// Ref. 1
+//// CA3 Pyramidal Neuron (Migliore et al 1995)
+
+
+begintemplate CA3PyramidalCell
+
+
+public is_art		// WhaT?
+public init, topol, basic_shape, subsets, geom, biophys
+public pre_list, connect2target
+
+
+
+//// Ref 1.
+//public soma, radTprox, radTmed, radTdist, lm_thick2, lm_medium2, lm_thin2
+//public lm_thick1, lm_medium1, lm_thin1, oriprox1, oridist1, oriprox2, oridist2
+
+//public axon
+public all
+
+
+public soma, stim
+create soma
+
+objref pre_list
+objref stim
+
+public Vrest
+proc init() {
+	Vrest = -65
+	v = Vrest
+	topol()
+	subsets()
+	geom()
+	biophys()
+	geom_nseg()
+	
+	pre_list = new List()	
+	
+	stims()	
+	synapses()
+}
+
+
+proc topol() { local i
+	//connect dendrite(0),soma(1)  //0 : Proximal     1: Distal
+	//connect axon(0), soma(1)
+	basic_shape()
+}
+
+proc basic_shape() {	//´Ü¼øÇÑ Shape -> 3D View
+	soma {pt3dclear() pt3dadd(0, 0, 0, 1) pt3dadd(15, 0, 0, 1)}
+	//dendrite {pt3dclear() pt3dadd(15, 0, 0, 1) pt3dadd(15, 90, 0, 1)}
+	//axon {pt3dclear() pt3dadd(15, 0, 0, 1) pt3dadd(15, -149, 0, 1)}
+}
+	
+	
+// Subset
+objref all
+proc subsets() { local i
+	objref all
+	all = new SectionList()
+		soma all.append()
+		//dendrite all.append()
+		//axon all.append()
+}
+
+
+// Geometry
+proc geom() {
+	// Soma
+	soma { L = 46.1079	diam = 23.4229	}	
+	
+	// SR is first 500um of apical dendrite
+	// OLM is final 300um of apical dendrite
+	// Basal dendrites extend 300 um
+	
+	
+	// The dendrite is 600 ¥ìm in length and has a constant diameter equal to 1.8 ¥ì (Ref.2)
+	// This is an intermediate diameter, considerably smaller than the large 
+	// initial apical diameter, but considerably larger than the fine
+	// distal apical dendritic segments
+	//dendrite {	L = 600	diam = 1.8	}
+	
+	// Short section of axon	
+	//axon { L = 150	diam = 1	}	
+}
+
+external lambda_f
+proc geom_nseg() {
+	forsec all { 
+		// nseg = int((L/(0.1*lambda_f(100))+.9)/2)*2 + 1  
+		nseg = 1
+	}
+}
+
+
+proc biophys() {
+	Rm = 60000 // Ohm.cm^2 (Miglore value)
+	gka_soma = 0.0075		// Proximal A-type K+ conductance
+	gh_soma = 0.00005		// Ih conductance
+	
+	soma {
+	
+		insert pas		// Leak conductance
+			e_pas = Vrest
+			g_pas = 1/Rm		// Leak Conductance
+			
+		insert na3n  gbar_na3n=0.015
+		insert kdrmig  gkdrbar_kdrmig=0.009
+	}
+		 	
+			
+			
+
+  	forsec all {
+		ek = -91
+		ena = 50
+		e_pas = Vrest
+		g_pas = 1/Rm		// crucial parameter for backpropagating action potential spiking of PCs
+		Ra = 200
+		cm = 1
+  	}		
+	
+
+	current_balance(Vrest)
+}
+public current_balance
+proc current_balance() {
+	
+		// finitialize(Vrest)
+	
+		forsec all {
+			v = Vrest
+		}
+		 // // print "Note: This does not account for non-specific ion currents.\n"
+		
+		// finitialize()
+		// fcurrent()
+		// frecord_init()
+
+		// printf("Balancing each compartment to %d mV\n", $1)
+
+		// forall {
+			  // for (x) {
+				
+				// if (ismembrane("na_ion") && ismembrane("ca_ion") && ismembrane("Ca_ion") && (ismembrane("k_ion"))) {
+					// e_pas(x) = v(x) + (ina(x)+ik(x)+iCa(x) + ica(x)) / g_pas(x) 
+					
+				// } else if (ismembrane("na_ion") && ismembrane("ca_ion") && (ismembrane("k_ion"))){
+
+					// // print "Current Balance before ", e_pas(x), " to " ,(ina(x)+ik(x)+ica(x)+g_pas(x)*v(x))/g_pas(x) 
+					// e_pas(x) = v(x) + (ina(x)+ik(x)+ica(x)) / g_pas(x) 
+					
+					// // printf("Section %s ina: %g ik: %g\n", secname(), ina(x), ik(x))
+				
+				// } else if (ismembrane("na_ion") && (ismembrane("k_ion"))) {
+					// e_pas(x)=(ina(x)+ik(x)+g_pas(x)*v(x))/g_pas(x)
+
+
+				  // //psection()
+				// } else {
+				  // print "simply assigning v(x)"
+				  // e_pas(x)=v(x)
+				// }
+			  // fcurrent()
+			// }
+		// }
+	  
+		// forall if (ismembrane("cad")) {
+			// for(x,0) {
+				// irest_cad(x)=ica(x)
+				// // depth_cad(x)=diam(x)/2    //;;;
+				// // depth_cad(x)= .1 
+				// cainf_cad(x) =  60e-6
+				// // cai(x) = cainf_cad(x)
+				
+				// // print ica(x)
+			// } // (fixed from =-ica minus sign bug)			
+		// }
+		// forall if (ismembrane("cadspine")) {
+			// for(x,0) {
+				// irest_cadspine(x)=ica(x)
+				// baseca_cadspine(x) =  60e-6
+			// } // (fixed from =-ica minus sign bug)			
+		// }		
+	}
+
+
+objref stim_sm
+
+proc stims () {
+
+	// stim = new List()
+	
+    // // soma stim_sm = new NetStim(0.5)
+    // // stim_sm.interval = 250 //(ms)  4Hz
+    // // stim_sm.number = 10000
+    // // stim_sm.start = 200 //(ms)
+    // // stim_sm.noise = 0
+	// soma stim_sm = new IClampISI(0.5)
+	
+	// stim_sm.del = 10
+	// stim_sm.amp = 0
+	// // stim_sm.interval = P_INTERVAL
+	// // stim_sm.num = P_NUM
+	
+	// stim.append(stim_sm)
+		
+}
+
+// From Ref.1
+obfunc connect2target() { localobj nc //$o1 target point process, optional $o2 returned NetCon
+  soma nc = new NetCon(&v(1), $o1)
+  nc.threshold = -10
+  if (numarg() == 2) { $o2 = nc } // for backward compatibility
+  return nc
+}
+
+
+objref syn_
+proc synapses() {
+  	/* E0 */   	soma syn_ = new MyExp2Syn(0.5)  pre_list.append(syn_)	// AMPA		EC input (EC2)
+    	syn_.tau1 = 0.5
+    	syn_.tau2 = 3
+    	syn_.e = 0
+		
+  	/* E1 */   	soma syn_ = new MyExp2Syn(0.5)  pre_list.append(syn_)	// AMPA		DG
+    	syn_.tau1 = 0.5
+    	syn_.tau2 = 3
+    	syn_.e = 0
+}
+
+func is_art() { return 0 }
+
+endtemplate CA3PyramidalCell
+
+
+

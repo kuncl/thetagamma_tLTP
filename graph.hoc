@@ -1,0 +1,562 @@
+strdef simulation_code
+objref oIPSP
+
+{load_file("./Experiments/STDP.hoc")}
+{load_file("./Experiments/peak_bpap.hoc")}
+{load_file("./Experiments/fi_curve.hoc")}
+{load_file("./Experiments/fi_curve_ISI.hoc")}
+{load_file("./Experiments/ISI_curve.hoc")}
+{load_file("./Experiments/calcium_peak.hoc")}
+{load_file("./Experiments/InputResistance.hoc")}
+{load_file("./Experiments/AnalysisIPSP.hoc")}
+{load_file("./Experiments/STDP.IPSP.Delay.hoc")}
+{load_file("./Experiments/STDP.Burst.Freq.hoc")}
+{load_file("./Experiments/STDP.Burst.Freq.Pilot.hoc")}
+{load_file("./Experiments/STDP.IPSP.Weight.hoc")}
+{load_file("./Experiments/STDP.IPSP.Location.hoc")}
+{load_file("./Experiments/STDP.IPSP.Weight.10HzPost.hoc")}
+{load_file("./Experiments/STDP.IPSP.Location.10HzPost.hoc")}
+
+{load_file("./Experiments/STDP.IPSP.Integ.hoc")}
+{load_file("./Experiments/STDP.Cut.fig.hoc")}
+{load_file("./Experiments/analys_inhibition.hoc")}
+{load_file("./Experiments/STDP.FENS.No.IPSP.hoc")}
+{load_file("./Experiments/STDP.FENS.Trace.hoc")}
+{load_file("./Experiments/fens.fig.cal.hoc")}
+
+
+objref menu 
+
+
+proc init_run() {	
+	
+	nclist.o(iBC_CA1_nc).weight = weight_BC_CA1
+	if (nBC >0 ) {
+		if (blockGABA == true ) { 
+			BasketCell[0].syn_list.o(0).weight = 0
+		} else {
+			BasketCell[0].syn_list.o(0).weight = weight_BC_CA1
+		}
+	}
+
+		
+	if (bJuvenile == true) {
+		sprint(simulation_code, "Juven")
+		CA1PyramidalCell[0].setAgeModel(1)
+	} else {
+		sprint(simulation_code, "Adult")
+		CA1PyramidalCell[0].setAgeModel(2)
+	}
+
+	if (bBetaAmyloid == true) {
+		sprint(simulation_code, "%sAD",simulation_code)
+		CA1PyramidalCell[0].insert_aBeta()
+	} else {
+		sprint(simulation_code, "%snAD",simulation_code)
+		CA1PyramidalCell[0].remove_aBeta()
+	}
+	
+	if (blockGABA == true) {
+		sprint(simulation_code, "%swoG",simulation_code)
+	} 	else {
+		sprint(simulation_code, "%swG",simulation_code)	
+	}
+	
+	if (bCA1Burst ==true ) {
+		CA1_BURST_FREQ = dCA1_BURST_FREQ
+		CA1_BURST_NUM = dCA1_BURST_NUM		
+		
+		sprint(simulation_code, "%sB",simulation_code)
+	} else {
+		CA1_BURST_FREQ = 50
+		CA1_BURST_NUM = 1
+		sprint(simulation_code, "%snB",simulation_code)
+	}
+
+	if (bUseFeedback == true) {
+		nclist.o(iCA1_BC_nc).weight = weight_CA1_BC
+	} else {
+		nclist.o(iCA1_BC_nc).weight = 0
+	}
+	
+	if (bUseFeedforward == true ){
+		nclist.o(iCA3_BC_nc).weight = weight_CA3_BC
+	} else {
+		nclist.o(iCA3_BC_nc).weight = 0
+	}
+	
+	
+	if (bSaveTrace == true) {
+		START_TRACE()
+	}
+	
+	// if (P_NUM == 0) { 
+		// tstop = T_STARTTIME + STIM_START + ENDTIME
+	// } else {
+		// tstop = T_STARTTIME + STIM_START + P_INTERVAL * (P_NUM + 1) + ENDTIME
+	// }
+	
+
+}
+
+
+proc my_run() {
+	init_run()
+	adjust_graph()
+	stdinit()
+	
+	run()
+	end_run()
+}
+
+
+proc end_run() {
+	if (bSaveTrace == true) { 
+		SAVE_TRACE()
+	}
+}
+
+objref recVCA3, recVCA1Soma, recVCA1Apical, recVBC
+objref recBCA1, recPCA1, recDCA1
+objref rect
+objref recCaiCA1Apical
+
+proc START_TRACE() {
+	// rect = new Vector()
+	
+	// recVCA3 = new Vector()
+	// recVCA1Soma = new Vector()
+	// recVCA1Apical = new Vector()
+	// if (nBC > 0) { recVBC = new Vector() }
+	// recBCA1  = new Vector()
+	// recPCA1 = new Vector()
+	// recDCA1 = new Vector()
+	// recCaiCA1Apical = new Vector()
+	
+	// recVCA3.record(&CA3PyramidalCell[0].soma.v(0.5))
+	// recVCA1Soma.record(&CA1PyramidalCell[0].soma.v(0.5))
+	// recVCA1Apical.record(&CA1PyramidalCell[0].apical[2].v(0.73222967) )
+	// if (nBC >0) {
+		// recVBC.record(&BasketCell[0].soma.v(0.5))
+	// }
+	
+	// recCaiCA1Apical.record(&CA1PyramidalCell[0].apical[2].cai(0.73222967) )
+	
+	// recBCA1.record(&CA1PyramidalCell[0].ltpltd.B)
+	// recDCA1.record(&CA1PyramidalCell[0].ltpltd.D)
+	// recPCA1.record(&CA1PyramidalCell[0].ltpltd.P)
+	
+	
+	// rect.record(&t)	
+}
+
+proc SAVE_FILE(){ local i localobj savtrace
+	savtrace = new File()
+	savtrace.wopen($s1)
+	for i=0,rect.size()-1 {
+		savtrace.printf("%g %g\n", rect.x(i), $o2.x(i))
+	}
+	savtrace.close()
+}
+
+strdef savtrace_name
+proc SAVE_TRACE() { 
+	// sprint(string, "system(\"mkdir Figures/%d\")", Simul_ID)
+	// execute(string)
+	
+	// sprint(savtrace_name, "Figures/%d/V_CA3_%s_%dms.dat", Simul_ID, simulation_code, PAIR_INTERVAL)
+	// SAVE_FILE(savtrace_name, recVCA3)
+	
+	// sprint(savtrace_name, "Figures/%d/V_CA1_Soma_%s_%dms.dat",  Simul_ID, simulation_code, PAIR_INTERVAL)
+	// SAVE_FILE(savtrace_name, recVCA1Soma)
+	
+	// sprint(savtrace_name, "Figures/%d/V_CA1_Apical_%s_%dms.dat", Simul_ID,  simulation_code, PAIR_INTERVAL)
+	// SAVE_FILE(savtrace_name, recVCA1Apical)
+	
+	// sprint(savtrace_name, "Figures/%d/V_BC_%s_%dms.dat", Simul_ID,  simulation_code, PAIR_INTERVAL)
+	// SAVE_FILE(savtrace_name, recVBC)
+		
+	// // sprint(savtrace_name, "Figures/%d/_STDP_P_CA1_%s_%dms.dat", Simul_ID,  simulation_code, PAIR_INTERVAL)
+	// // SAVE_FILE(savtrace_name, recPCA1)
+	
+	// // sprint(savtrace_name, "Figures/%d/_STDP_D_CA1_%s_%dms.dat",  Simul_ID, simulation_code, PAIR_INTERVAL)
+	// // SAVE_FILE(savtrace_name, recDCA1)
+	
+	// // sprint(savtrace_name, "Figures/%d/_STDP_B_CA1_%s_%dms.dat", Simul_ID,  simulation_code, PAIR_INTERVAL)
+	// // SAVE_FILE(savtrace_name, recBCA1)
+	
+	// sprint(savtrace_name, "Figures/%d/Cai_CA1_Apical_%s_%dms.dat",  Simul_ID, simulation_code, PAIR_INTERVAL)
+	// SAVE_FILE(savtrace_name, recCaiCA1Apical)
+	
+}
+
+cordSyn = CA1PyramidalCell[0].locSyn / 400
+
+proc make_stim_prop(){ 	
+	$o1.stim.o($2).amp = $3
+	$o1.stim.o($2).del = $4
+	$o1.stim.o($2).dur = $5	
+}
+
+
+// AnalysisPSP ( oPrecell, oPostcell, oStim.amp, oStim.del , oStim.dur, burst_freq, burst_num)
+proc AP_Fig(){ 
+	P_NUM = 0 
+	init_run()
+	tstop  = T_STARTTIME + 10 +  2  + ENDTIME
+	
+	if (bCA1Burst == true ) {
+		oIPSP = new AnalysisPSP(CA1PyramidalCell[0], CA1PyramidalCell[0], CA1_STIM, T_STARTTIME+ 10, CA1_STIM_DUR, CA1_BURST_FREQ, CA1_BURST_NUM)				
+	} else {
+		oIPSP = new AnalysisPSP(CA1PyramidalCell[0], CA1PyramidalCell[0], CA1_STIM, T_STARTTIME+ 10, CA1_STIM_DUR)
+	}
+	oIPSP.setEPSP()
+	
+	my_run()
+	
+	oIPSP.exec()
+}
+
+proc EPSP_Fig(){ 
+	P_NUM = 0
+	init_run()
+	
+	tstop  = T_STARTTIME + 10 +  2  + ENDTIME
+		
+	oIPSP = new AnalysisPSP(CA3PyramidalCell[0], CA1PyramidalCell[0], CA3_STIM, T_STARTTIME+ 10, CA3_DUR)
+	
+	oIPSP.setEPSP()
+	
+	my_run()
+	
+	oIPSP.exec()
+}
+
+proc IPSP_Fig(){
+	P_NUM = 0
+	init_run()
+	
+	tstop  = T_STARTTIME + 10 +  2  + ENDTIME
+	if (bCA1Burst == true ) {
+		oIPSP = new AnalysisPSP(BasketCell[0], CA1PyramidalCell[0], 1.5, T_STARTTIME+ 10, 2, CA1_BURST_FREQ, CA1_BURST_NUM)				
+	} else {
+		oIPSP = new AnalysisPSP(BasketCell[0], CA1PyramidalCell[0], 1.5, T_STARTTIME+ 10, 2)
+	}		
+	oIPSP.setIPSP()
+	
+	my_run()
+	
+	oIPSP.exec()
+}
+
+proc RESTING_Fig(){
+	my_run()
+}
+
+
+objref stim_
+proc makeIClamp() { // $o1 : Cell, $2 : del , $3 :  dur, $4 : amp
+	if (numarg() > 4) {
+		$o1.soma $o5 = new IClamp(0.5)
+		$o5.del = T_STARTTIME + $2
+		$o5.dur = $3
+		$o5.amp = $4	
+		tstop = $o5.del  + $o5.dur + 100		
+	} else {
+		$o1.soma stim_ = new IClamp(0.5)
+		stim_.del = T_STARTTIME + $2
+		stim_.dur = $3
+		stim_.amp = $4	
+		tstop = stim_.del  + stim_.dur + 100
+	}	
+
+	my_run()
+	
+	stim_ = nil
+	
+	// stimList.append(stim_)
+}
+
+
+objref cmd_menu, params_menu
+proc make_menu() { objref ck1
+	cmd_menu = new VBox()
+    cmd_menu.intercept(1)
+ 
+	xpanel("Buttons", 0)		   
+		xlabel("Experiments")
+		xmenu("Expermients")
+			xbutton("Action Potential Only", "AP_Fig() ")
+			xbutton("EPSP Only", "EPSP_Fig()")
+			xbutton("IPSP Only", "IPSP_Fig()")
+			xbutton("Resting State", "RESTING_Fig()")		
+			xbutton("Peak BPAP", "peak_bpap()")
+			xbutton("Peak BPAP STDP", "peak_bpap_stdp()")			
+			xbutton("F-I Curve", "fi_curve(CA1PyramidalCell[0],800)")
+			xbutton("F-I Curve (ISI)", "fi_curve_ISI(1200)")	
+			xbutton("ISI-Curve", "ISI_curve()")
+			xbutton("Peak Ca++", "calcium_peak()")
+			xbutton("Input resistance", "rn(CA1PyramidalCell[0])")
+			xbutton("Inhibition analysis", "analy_inhb_init()")
+		xmenu()
+	xpanel()
+	
+	
+	
+    xpanel("",1)
+	xvalue("Simulation ID", "Simul_ID",2)
+	xpanel()
+	
+		
+	xpanel("Parameters", 1)	
+		xcheckbox("Save Trace", &bSaveTrace)
+	xpanel()
+	
+	
+	
+	xpanel("Stim",0)
+		xlabel("SIMULATION")
+
+		xvalue("CA1_Amp", "CA1_STIM", 2)
+		xcheckbox("Juvenile Model", & bJuvenile)
+		xcheckbox("Block GABA", &blockGABA)
+		xcheckbox("Insert Beta Amyloid", &bBetaAmyloid)
+		xcheckbox("BURST", &bCA1Burst)
+		xcheckbox("Feedforward Inhibition", &bUseFeedforward)
+		xcheckbox("Feedback Inhibition", &bUseFeedback)
+		xvalue("CA1 Burst Freq(Hz)", "dCA1_BURST_FREQ", 2)
+		xvalue("CA1 Burst Num", "dCA1_BURST_NUM", 2)
+		
+		xmenu("IPSP Amplitude")
+			xradiobutton("5 nS", "weight_BC_CA1 = 0.005")
+			xradiobutton("10 nS", "weight_BC_CA1 = 0.01")
+			xradiobutton("15 nS", "weight_BC_CA1 = 0.015")
+			xradiobutton("20 nS", "weight_BC_CA1 = 0.02")
+			xradiobutton("30 nS", "weight_BC_CA1 = 0.03")
+			xradiobutton("40 nS", "weight_BC_CA1 = 0.04")
+			xradiobutton("50 nS", "weight_BC_CA1 = 0.05")
+		xmenu()
+		
+		xmenu("IPSP Location")
+			xradiobutton("0 um", "CA1PyramidalCell[0].reloc_syn(nclist.o(iBC_CA1_nc),0)")
+			xradiobutton("50 um", "CA1PyramidalCell[0].reloc_syn(nclist.o(iBC_CA1_nc),50)")
+			xradiobutton("100 um", "CA1PyramidalCell[0].reloc_syn(nclist.o(iBC_CA1_nc),100)")
+			xradiobutton("150 um", "CA1PyramidalCell[0].reloc_syn(nclist.o(iBC_CA1_nc),150)")
+			xradiobutton("200 um", "CA1PyramidalCell[0].reloc_syn(nclist.o(iBC_CA1_nc),200)")
+			xradiobutton("250 um", "CA1PyramidalCell[0].reloc_syn(nclist.o(iBC_CA1_nc),250)")
+			xradiobutton("300 um", "CA1PyramidalCell[0].reloc_syn(nclist.o(iBC_CA1_nc),300)")
+			xradiobutton("400 um", "CA1PyramidalCell[0].reloc_syn(nclist.o(iBC_CA1_nc),400)")
+		xmenu()
+
+		// xvalue("GABA_E", "CA1PyramidalCell[0].pre_list.o[i_BC_CA1_I].e",2)
+		
+		xvalue("PAIRING FREQ(Hz)","P_FREQ",2)
+		xvalue("PAIRING Num","P_NUM",2)
+		xvalue("Simul_Time","t",2)
+		xvalue("Real Time","realtime",2)
+	xpanel()
+		
+	xpanel("Graphs",0)
+		xlabel("Graphs")
+		xcheckbox("Network Membrane", &useHippoMembrane, "makeGraph()")
+		xcheckbox("CA1 Membrane", &useCA1Membrane, "makeGraph()")
+		xcheckbox("CA1 Currents", &useCurrentFigure, "makeGraph()")
+	xpanel()
+	
+	xpanel("Buttons", 1)
+		xbutton("Quit", "quit()")
+    xpanel()
+	
+	cmd_menu.intercept(0)
+    cmd_menu.map("Buttons", 1000, 200, -1, -1)	
+		
+	
+}
+
+objref nil
+objref  fig1, fig2, figCurrent
+useHippoMembrane = false
+useCA1Membrane = false
+useCurrentFigure = false
+proc InitGraph() { 
+	fig1 = nil
+	fig2 = nil
+	figCurrent = nil
+}
+proc makeGraph() {	
+ InitGraph() 
+	if (useHippoMembrane == true || useCA1Membrane == true ) {
+		vbox_st(fig1)
+	}	
+	if (useHippoMembrane == true) {
+
+		gIDX_Pre = new_graph(-80.0, 50.0)
+		add_plot(gIDX_Pre, "Pre - CA3", "CA3PyramidalCell[0].soma.v(0.5)", 2, 2)
+		
+		gIDX_Post = new_graph(-80.0, 50.0)
+		add_plot(gIDX_Post, "soma", "CA1PyramidalCell[0].soma.v(0.5)", 2, 1)
+		
+		if (nBC >0 ) {
+			gIDX_Basket = new_graph(-80.0, 50.0)
+			add_plot(gIDX_Basket, "BasketCell", "BasketCell[0].soma.v(0.5)", 2, 2)
+		}
+		
+		// vbox_ed(fig1, "Membrane Voltage Graph", 100, 200, 400, 100)
+	}
+
+	if (useCA1Membrane == true) {
+		// vbox_st(fig2)
+
+		// gIDX_CA1_V = new_graph(-66.2, -66.5)
+		gIDX_CA1_V = new_graph(-70.0, 50.0)
+		add_label(gIDX_CA1_V,  "Membrane Potential", 0.75 , .8)
+
+		add_plot(gIDX_CA1_V, "soma", "CA1PyramidalCell[0].soma.v(0.5)", 2, 1)
+		// add_plot(gIDX_CA1_V, "med apical(150um)", "CA1PyramidalCell[0].radTmed.v(0.5)", 3, 1)
+		// add_plot(gIDX_CA1_V, "med apical(150um)", "CA1PyramidalCell[0].apical[2].v(0.73222967)", 3, 1)
+		// add_plot(gIDX_CA1_V, "dist apical(280um)", "CA1PyramidalCell[0].apical[3].v(0.93273222)", 4, 1)
+		add_plot(gIDX_CA1_V, "spine", "CA1PyramidalCell[0].spine.v(0.5)", 4, 1)
+
+		
+		// gIDX_CA1_SYN = new_graph(-1, 2)
+		// add_label(gIDX_CA1_SYN, "Soma GABA", "CA1PyramidalCell[0].pre_list.o(i_CA3_CA1_I).i", 2,1)
+		// add_label(gIDX_CA1_SYN, "Soma E", "CA1PyramidalCell[0].pre_list.o(i_CA3_CA1_EA).i", 3,1)
+		
+		ca_unit = 1e6
+		ca_max = 30
+		
+		// gIDX_CA1_CA = new_graph(0, 200)		
+		// add_label(gIDX_CA1_CA,  "d[Ca2+]i (nM)", 0.73222967 , .8)	
+		// add_plot(gIDX_CA1_CA, "cai soma", "(CA1PyramidalCell[0].soma.cai(0.5) - CA1PyramidalCell[0].soma.carest_dsca(0.5))* 1e6", 2, 1) // SC			
+	}	
+	if (useHippoMembrane == true || useCA1Membrane == true) {
+		vbox_ed(fig1, "Membrane Voltage Graph", 100, 100, 400, 800)
+	}
+	
+	
+	if (useCurrentFigure == true) { 
+		vbox_st(figCurrent)
+			// access CA1PyramidalCell[0].apical
+			
+			gIDX_CA1_CA = new_graph( 0, 2 )
+			add_plot(gIDX_CA1_CA, "[Ca2+]i (150um) (uM) ", "CA1PyramidalCell[0].ltpltd.xspine * 1e3" , 3 , 3)
+			// gIDX_CA1_CA = new_graph(0, 4.5e-4  - CA1PyramidalCell[0].ltpltd.carest)
+			// add_plot(gIDX_CA1_CA, "d[Ca2+]i (150um) (mM) ", "(CA1PyramidalCell[0].ltpltd.xspine - CA1PyramidalCell[0].ltpltd.carest) * 1e6" , 3 , 3)
+			// gIDX_CA1_CA = new_graph(0, 4.5e-4  - CA1PyramidalCell[0].ltpltd.carest)
+			// add_plot(gIDX_CA1_CA, "d[Ca2+]i (150um) (mM) ", "(CA1PyramidalCell[0].apical[2].cai(0.73222967))*1e6" , 3 , 3)
+			
+			
+			// gIDX_EPSCs = new_graph(0, -200)
+			// add_plot(gIDX_EPSCs, "CA1-BC (pA)", "BasketCell[0].pre_list.o[i_CA1_BC_I].i * 1e3", 1, 1) //nA
+			// add_plot(gIDX_EPSCs, "CA3-BC (pA)", "BasketCell[0].pre_list.o[i_CA3_BC_I].i * 1e3" , 2, 1)
+			gIDX_current = new_graph(0, -200)
+			access CA1PyramidalCell[0].spine
+			spine_area = area(0.5)
+			add_plot(gIDX_current, "Calcium Current (pA)", "CA1PyramidalCell[0].spine.ica(0.5) * 1e3", 1,1)
+			add_plot(gIDX_current, "Calcium CaL (pA)", "CA1PyramidalCell[0].spine.ica_calH(0.5) * 1e3", 2,1)
+			add_plot(gIDX_current, "Calcium CaL (pA)", "CA1PyramidalCell[0].spine.ica_calm(0.5) * 1e3", 2,1)
+			add_plot(gIDX_current, "Calcium NMDA (pA)", "CA1PyramidalCell[0].pre_list.o[i_CA3_CA1_EN].ica * 1e5 / spine_area", 3,1)
+			
+			
+			gIDX_EPSCs = new_graph(0, -200)
+			add_plot(gIDX_EPSCs, "EPSC (pA)", "(CA1PyramidalCell[0].pre_list.o[i_CA3_CA1_EA].i  + CA1PyramidalCell[0].pre_list.o[i_CA3_CA1_EN].i) * 1e5 / spine_area", 3, 1)
+			add_plot(gIDX_EPSCs, "AMPA (pA)", "CA1PyramidalCell[0].pre_list.o[i_CA3_CA1_EA].i * 1e5 / spine_area", 3, 1)
+			add_plot(gIDX_EPSCs, "NMDA (pA)", "CA1PyramidalCell[0].pre_list.o[i_CA3_CA1_EN].i * 1e5 / spine_area", 3, 1)
+			add_plot(gIDX_EPSCs, "GABA (pA)", "CA1PyramidalCell[0].pre_list.o[i_BC_CA1_I].i  * 1e5 / spine_area", 2,1)
+			
+			// gIDX_EPSCs = new_graph(0, -200)
+			// add_plot(gIDX_EPSCs, "AMPA (pA)", "CA1PyramidalCell[0].pre_list.o[i_CA3_CA1_EA].i * 1e3", 1, 1) //nA
+			// add_plot(gIDX_EPSCs, "NMDA (pA)", "CA1PyramidalCell[0].pre_list.o[i_CA3_CA1_EN].i * 1e3" , 2, 1)
+			
+			// add_plot(gIDX_EPSCs, "AMPA+NMDA (pA)", "(CA1PyramidalCell[0].pre_list.o[i_CA3_CA1_EA].i  + CA1PyramidalCell[0].pre_list.o[i_CA3_CA1_EN].i) * 1e3", 3, 1)
+
+			// gIDX_EPSCs = new_graph(0, -200)
+			// add_plot(gIDX_EPSCs, "AMPA (pA)", "CA1PyramidalCell[0].pre_list.o[i_CA3_CA1_EA].i * 1e3", 1, 1) //nA
+
+			// gIDX_EPSCs = new_graph(0, -200)
+			// add_plot(gIDX_EPSCs, "NMDA (pA)", "CA1PyramidalCell[0].pre_list.o[i_CA3_CA1_EN].i * 1e3" , 2, 1)
+			
+			
+			
+			// gIDX_Currents = new_graph(0,1)
+			// add_plot(gIDX_Currents, "Soma K+ M (uS/cm2)", "CA1PyramidalCell[0].soma.gkm_borgkm(0.5) * 1e6", 1, 1)
+						
+			// gIDX_Currents = new_graph(0,1)
+			// add_plot(gIDX_Currents, "Soma K+ AHP (uS/cm2)", "CA1PyramidalCell[0].soma.gkahp_KahpM95(0.5) * 1e6", 1, 1)
+					
+			
+			// gIDX_Currents = new_graph(0,10)
+			// add_plot(gIDX_Currents, "K+ Transient (pA)", "CA1PyramidalCell[0].apical[2].ik_kad(0.73222967) * area(0.73222967)  * 1e1", 1, 1)
+			// add_plot(gIDX_Currents, "K+ Sustained(pA)", "CA1PyramidalCell[0].apical[2].ik_kdr(0.73222967) * area(0.73222967) * 1e1", 2, 1)
+					
+			// gIDX_Currents = new_graph(0,-10)
+			// add_plot(gIDX_Currents, "Na+ channels (pA)", "CA1PyramidalCell[0].apical[2].ina_na3(0.73222967) * area(0.73222967)  * 1e1", 1, 1)				
+			// add_plot(gIDX_Currents, "H current (pA)", "CA1PyramidalCell[0].apical[2].ina_h(0.73222967) * area(0.73222967)  * 1e1", 2, 1)		
+			
+			// gIDX_Currents = new_graph(0,-5)
+			// add_plot(gIDX_Currents, "total Ca2+ current (pA)", "CA1PyramidalCell[0].apical[2].ica(0.73222967) * area(0.73222967) * 1e1", 1, 1) // * 1e1 : pA , * 1e-2 : nA
+			// add_plot(gIDX_Currents, "NMDA ica (pA)", "CA1PyramidalCell[0].pre_list.o[i_CA3_CA1_EN].ica * 1e3 ", 2, 1)
+			// add_plot(gIDX_Currents, "T-type ica (pA)", "CA1PyramidalCell[0].apical[2].ica_catm(0.73222967)* area(0.73222967) * 1e1 ", 3, 1)
+			// add_plot(gIDX_Currents, "N-type ica (pA)", "CA1PyramidalCell[0].apical[2].ica_canm(0.73222967) * area(0.73222967) * 1e1", 4, 1)
+			// add_plot(gIDX_Currents, "L-type ica (pA)", "CA1PyramidalCell[0].apical[2].ica_calm(0.73222967) * area(0.73222967) * 1e1", 5, 1)
+						
+						
+						
+						
+						
+						
+						
+						
+						
+						
+						
+			
+			
+			// gIDX_Currents = new_graph(-10,10)
+			// add_plot(gIDX_Currents, "T-type gcat (pA)", "CA1PyramidalCell[0].apical.gcat_cat2(150/400) ", 3, 1)					
+			
+			// gIDX_Currents = new_graph(-10,10)
+			// add_plot(gIDX_Currents, "T-type drive force (pA)", "CA1PyramidalCell[0].apical.drive_cat2(150/400) ", 3, 1)					
+						
+			
+			// gIDX_Currents = new_graph(-10,10)
+			// add_plot(gIDX_Currents, "T-type M (pA)", "CA1PyramidalCell[0].apical.m_cat2(150/400) ", 2, 1)			
+			// add_plot(gIDX_Currents, "T-type H (pA)", "CA1PyramidalCell[0].apical.h_cat2(150/400) ", 3, 1)			
+
+			
+			
+			// gIDX_Currents = new_graph(-10,10)			
+			// add_plot(gIDX_Currents, "total Ca2+ current (pA)", "CA1PyramidalCell[0].soma.ica(0.5) * area(0.5) * 1e1", 1, 1) // * 1e1 : pA , * 1e-2 : nA
+			// add_plot(gIDX_Currents, "T-type ica (pA)", "CA1PyramidalCell[0].soma.ica_cat2(0.5) * area(0.5) * 1e1", 3, 1)
+			// add_plot(gIDX_Currents, "R-type ica (pA)", "CA1PyramidalCell[0].soma.ica_car(0.5) *area(0.5) * 1e1", 4, 1)
+			// add_plot(gIDX_Currents, "L-type ica (pA)", "CA1PyramidalCell[0].soma.ica_cal2(0.5) * area(0.5) * 1e1", 5, 1)
+			
+			
+			
+			
+			
+			
+			
+			
+			add_plot(gIDX_EPSCs, "GABA", "CA1PyramidalCell[0].pre_list.o[5].i", 2, 1)
+			// add_plot(gIDX_EPSCs, "", "epspPeak",1,6)
+			// add_plot(gIDX_EPSCs, "", "minNMDA * 100",3,6)
+
+			// add_plot(gIDX_EPSCs, "K_M(Borg)", "CA1PyramidalCell[0].soma.gkm_borgkm", 1, 1)	
+			// add_plot(gIDX_EPSCs, "K_M", "CA1PyramidalCell[0].soma.ik_km",1,1)
+			// add_plot(gIDX_EPSCs, "K_sAHP", "CA1PyramidalCell[0].soma.ik_kca",2,1)
+			// add_plot(gIDX_EPSCs, "K_mAHP", "CA1PyramidalCell[0].soma.ik_mykca",3,1)	
+
+			
+			// add_plot(gIDX_EPSCs, "NMDA", "minNMDA", 2, 2)
+		vbox_ed(figCurrent, "Channel Currents", 100, 740, 400, 200)
+	}
+}
+
+
+
+make_menu( "Click to run")
+
+makeGraph()
+
+

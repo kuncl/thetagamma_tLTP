@@ -1,0 +1,198 @@
+begintemplate expSupra
+	external my_run, lib
+	external tstop
+	
+	external cells, iCA1
+	
+	objref cell, zap
+	
+	objref rob,noiseRandObj
+	objref ns, nou, ndc, nc
+	strdef data_dir
+	proc init() {
+		cell = $o1	
+		
+		
+		if (cell == lib.nil)  {
+			print "ERR(expZAP,init) Please confirm the cell object "
+		} else {
+			
+			gui()
+		}
+		
+	}
+	
+	proc supra_init() {
+		simDur = 50*1000
+		// simDur = 2*1000
+		tstop = simDur + 1000
+		
+		rob = new RandomStream()
+		noiseRandObj = new Random(rob.getrand())
+		noiseRandObj.normal(0,1)
+		
+		cell.soma ns = new NetStim(.5)
+
+		cell.soma nou = new Ifluct1(0.5)
+		nou.m = 0.06  * 0
+		nou.s = 0.10 
+		nou.s = 0.017
+		nou.tau = 5
+		nou.setRandObj(noiseRandObj)
+		
+		cell.soma ndc = new IClamp(0.5)
+		ndc.del = 0
+		ndc.dur = tstop
+		ndc.amp = 0.06 
+		
+		data_dir = "data/finalPoirazi_fix/"
+			
+			
+	}
+	proc supra_run() { localobj Idc_vec, ka_block_vec
+
+		Idc_vec = new Vector()	
+		
+		base = 0.008
+		// Idc_vec.append(base ) // 0% Block
+		// Idc_vec.append( base  ) // 20% Block
+		// Idc_vec.append( base  ) // 40% Block
+		// Idc_vec.append( base  ) // 60% Block
+		// Idc_vec.append( base  ) // 80% Block
+		// Idc_vec.append( base  ) // 100% Block
+
+		Idc_vec.append( base  ) // 0% Block
+		// Idc_vec.append( base * 0.95  ) // 20% Block
+		// Idc_vec.append( base * 0.93  ) // 40% Block
+		// Idc_vec.append( base * 0.91 ) // 60% Block
+		// Idc_vec.append( base * 0.89 ) // 80% Block
+		Idc_vec.append( base * 0.05  ) // 100% Block
+
+		ka_block_vec = new Vector()
+		ka_block_vec.append(1)
+		// ka_block_vec.append(0.8)
+		// ka_block_vec.append(0.6)
+		// ka_block_vec.append(0.4)
+		// ka_block_vec.append(0.2)
+		ka_block_vec.append(0)
+
+		numTrial = 5
+		// numTrial = 1
+		// for (idxKA=0;idxKA<1;idxKA+=1) {	
+		// for (idxKA=1;idxKA<2;idxKA+=1) {	
+		// for (idxKA=2;idxKA<3;idxKA+=1) {	
+		// for (idxKA=3;idxKA<4;idxKA+=1) {	
+		// for (idxKA=4;idxKA<5;idxKA+=1) {	
+		// for (idxKA=5;idxKA<6;idxKA+=1) {	
+		for (idxKA=0;idxKA<ka_block_vec.size();idxKA+=1) {	
+			reKA = 1
+			KA_value = ka_block_vec.x(idxKA)
+			cell.gka_set(KA_value, KA_value)
+			ndc.amp = Idc_vec.x(idxKA)
+			for (j=1;j<=numTrial;j+=1){
+				nowTrial = j
+				GainModulation_body() 
+			}
+		}
+	}
+
+	objref apv
+	objref vr, vsoma, vt,vzap,vdc
+	strdef temp
+	proc GainModulation_body() { localobj fp, somarecf
+		// nc = new NetCon(ns, nou)
+		// nou.seed(rob.getrand())	
+		
+		
+		vsoma=new Vector()                                     // record voltage at soma and store in vector vsoma  
+		vsoma.record(&cell.soma.v(0.5))
+		vt = new Vector()
+		vt.record(&t)
+		vzap = new Vector()
+		vzap.record(&nou.i)
+		// vzap.record(&soma.i_OU(0.5))
+		vdc = new Vector()
+		vdc.record(&ndc.i)
+		
+		cell.soma apv = new APCount(0.5)
+		
+		print "KA_Value = ", KA_value, "DC = ", ndc.amp
+		my_run()
+		
+		
+		vr = new Vector()
+		vr.spikebin(vsoma, -10)
+		vr = vr.div(dt * 1e-3)
+		
+		print "Mean Firing Rate = ", apv.n / (tstop/1000), "Hz"
+		
+		lib.mkdir(data_dir)
+		// Print the voltage trace for the soma in the corresponding file 
+		somarecf=new File()
+		sprint(temp, "%s/%f_%d_soma.dat", data_dir, KA_value, nowTrial)
+		somarecf.wopen(temp)
+		vsoma.printf(somarecf, "%f\n")
+		somarecf.close()
+		
+		somarecf=new File()
+		sprint(temp, "%s/%f_%d_noise.dat", data_dir,KA_value, nowTrial)
+		somarecf.wopen(temp)
+		vzap.printf(somarecf, "%f\n")
+		somarecf.close()
+		
+		somarecf=new File()
+		sprint(temp, "%s/%f_%d_dc.dat", data_dir,KA_value, nowTrial)
+		somarecf.wopen(temp)
+		vdc.printf(somarecf, "%f\n")
+		somarecf.close()
+		
+		somarecf=new File()
+		sprint(temp, "%s/%f_%d_t.dat", data_dir,KA_value, nowTrial)
+		somarecf.wopen(temp)
+		vt.printf(somarecf, "%f\n")
+		somarecf.close()			
+		
+		somarecf=new File()
+		sprint(temp, "%s/%f_%d_rate.dat", data_dir,KA_value, nowTrial)
+		somarecf.wopen(temp)
+		vr.printf(somarecf, "%f\n")
+		somarecf.close()			
+		
+	}
+
+
+	objref box, boxcmd
+	objref gv, gi
+	external graphList
+	proc gui() { localobj pwm
+		box = new VBox()
+		box.intercept(1)
+			gv = new Graph()
+			gv.addvar("cell.soma.v(0.5)")
+			gv.size(0,tstop,-40,-80)
+			
+			gi = new Graph()
+			// gi.addvar("nou.i")
+			gi.size(0,tstop,-1,1)
+			
+			graphList[0].append(gv)
+			graphList[0].append(gi)
+		box.intercept(0)
+		box.map()
+
+		pwm = new PWManager()
+		pwm.hide(pwm.count()-1)
+		
+		boxcmd = new VBox()
+		boxcmd.intercept(1)
+			xpanel("Exp",0)
+				xbutton("Run Supra", "supra_init() supra_run()")		
+				// xbutton("Tot ZAP", "tot_run()")		
+			xpanel()
+		boxcmd.intercept(0)
+		boxcmd.map()
+		
+	}	
+	
+	
+endtemplate expSupra

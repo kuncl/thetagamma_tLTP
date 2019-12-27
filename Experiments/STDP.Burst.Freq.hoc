@@ -1,0 +1,80 @@
+
+objref SBF_grpSTDP
+// STDP IPSP Delay º° Â÷ÀÌSIW
+proc SBF_init(){ local i localobj strpath, burstfreqs
+	// default = delay_BC_CA1
+	SBF_GUI()
+	
+	blockGABA = false
+	bUseFeedforward = true
+	bUseFeedback = false
+	
+	weight_BC_CA1 = 0.01
+	CA1PyramidalCell[0].apical[1] nclist.o(iBC_CA1_nc).syn.loc(0.3747246) 
+	
+	SBF_def_freq = CA1_BURST_FREQ
+	burstfreqs = new Vector()
+	burstfreqs.append(100)
+	burstfreqs.append(50)
+	burstfreqs.append(20)
+	burstfreqs.append(10)
+	
+	
+	for (i = 0; i < burstfreqs.size() ; i =i +1) {		
+		SBF_body(burstfreqs.x(i), i + 1)
+	}
+	
+	strpath= new myString()
+	strpath.sprintf("output\\STDP.burstfreq\\%d.STDP.burstfreq.pool.eps",Simul_ID)
+	
+	SBF_grpSTDP.printfile(strpath.s)
+} 
+proc SBF_adjust() {
+	CA1_BURST_FREQ = $1
+}
+proc SBF_restore() {
+	CA1_BURST_FREQ = SBF_def_freq	
+}
+proc SBF_body() { local color_code
+	SBF_adjust($1)
+	
+	bStdpFig = false
+	color_code = $2	
+	bSTDPoutputFig = false
+	
+	STDP_Curve()
+	 
+	STDP_WeightsEPSC.line(SBF_grpSTDP,STDP_Dts, color_code , color_code % 9 + 1)
+	SBF_grpSTDP.size(-100,100,-100,100)
+
+	SBF_out($1)
+	
+	
+	SBF_restore() 
+}
+
+proc printVec() { localobj fp
+	fp = new File()
+	fp.wopen($s1)
+	$o2.printf(fp)
+	fp.close()
+}
+
+strdef SBF_str
+proc SBF_out() { localobj strdir, strpath
+		
+	strdir = new myString("output\\STDP.burstfreq")
+	strpath = new myString()	
+	
+	sprint(strpath.s, "%s\\%d.burstfreq%dms.EPSC.dat", strdir.s, Simul_ID, $1)
+	printVec(strpath.s, STDP_WeightsEPSC)
+	sprint(strpath.s, "%s\\%d.burstfreq%dms.Readout.dat", strdir.s, Simul_ID, $1)
+	printVec(strpath.s, STDP_ReadOut)
+}
+
+proc SBF_GUI() { 
+	SBF_grpSTDP = new Graph()
+	SBF_grpSTDP.exec_menu("Keep Lines")
+		SBF_grpSTDP.size(-100,100,-100,100)
+
+}

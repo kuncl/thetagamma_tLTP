@@ -1,0 +1,76 @@
+
+objref SIW_grpSTDP
+// STDP IPSP Delay º° Â÷ÀÌSIW
+proc SIW_init(){ local i, color_code localobj strpath
+	execute("system(\"mkdir ./output\")")	
+	execute("system(\"mkdir ./output/STDP.weight\")")
+blockGABA = false
+
+	// default = delay_BC_CA1
+	SIW_GUI()
+	
+	SIW_def_weight = weight_BC_CA1
+	
+	color_code =  0
+	// for (i = 0.0; i <=1.0 ; i =i +0.5) {
+	// for (i = 1.5; i <= 2.0 ; i = i + 0.5) {
+	i = 0.5
+		color_code= color_code + 1
+		SIW_body(i, color_code)
+	// }
+	
+	strpath= new myString()
+	strpath.sprintf("output\\STDP.weight\\%d.STDP.weight.pool.eps",Simul_ID)
+	
+	SIW_grpSTDP.printfile(strpath.s)
+}
+
+proc SIW_body() { local color_code1
+	weight_BC_CA1 = SIW_def_weight * $1
+	// CA1PyramidalCell[0].reloc_syn(nclist.o(iBC_CA1_nc),50)
+
+	// print nclist.o(iBC_CA1_nc).weight, "Weight ¾ê³Ä?!!!"
+
+	bStdpFig = false
+	bCA1Burst = false
+	color_code = $2
+	bSTDPoutputFig = false
+	print color_code , "color code"
+	STDP_Curve()
+	
+	STDP_WeightsEPSC.line(SIW_grpSTDP,STDP_Dts, color_code , color_code % 9 + 1)
+	SIW_grpSTDP.size(-100, 100, -100, 100)
+
+	SIW_out($1)
+	
+	weight_BC_CA1 = SIW_def_weight
+	// print nclist.o(iBC_CA1_nc).weight, "Weight ¾ê¶ó°í!!!"
+}
+
+proc SIW_printVec() {local i localobj fp
+	fp = new File()
+	fp.aopen($s1)
+	for (i=0;i<$o2.size();i=i+1) {
+		fp.printf("%g %g\r\n",$o2.x[i], $o3.x[i])
+	}
+	fp.close()
+}
+
+strdef SIW_str
+proc SIW_out() { localobj strdir, strpath
+		
+	strdir = new myString("output\\STDP.weight")
+	strpath = new myString()	
+	
+	sprint(strpath.s, "%s\\%d_weight_EPSC_%f.dat", strdir.s, Simul_ID, $1)
+	SIW_printVec(strpath.s, STDP_Dts,  STDP_WeightsEPSC)
+	sprint(strpath.s, "%s\\%d_weight_Readout_%f.dat", strdir.s, Simul_ID, $1)
+	SIW_printVec(strpath.s, STDP_ReadOut)		
+}
+
+proc SIW_GUI() { 
+	SIW_grpSTDP = new Graph()
+	SIW_grpSTDP.exec_menu("Keep Lines")
+	SIW_grpSTDP.size(-100,100,-100,100)
+
+}

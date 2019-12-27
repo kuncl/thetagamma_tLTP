@@ -1,0 +1,144 @@
+// Artificial cells no longer need a default section.
+//Network cell templates
+//   BasketCell
+// Simplified version (BPG 27-9-08)
+//  - geometry and channels from Santhakumar et al 2005
+//  - geometry modified to preserve VCUs different dendrites
+
+begintemplate PV_IN
+public is_art
+public init, topol, basic_shape, subsets, geom, biophys
+public pre_list, syn_list, connect2target
+
+public soma, radT2, radM2, radt2, lmM2, lmt2, radT1
+public radM1, radt1, lmM1, lmt1, oriT1, oriM1, orit1
+public oriT2, oriM2, orit2
+public all
+
+objref pre_list, syn_list
+
+public stim
+objref stim
+
+public Vrest
+proc init() {
+	Vrest = -65
+  	topol()
+  	subsets()
+  	geom()
+  	biophys()
+  	geom_nseg()
+  	pre_list = new List()
+	syn_list = new List()
+	stims()	
+  	synapses()
+}
+
+create soma 
+
+proc topol() { local i
+}
+
+proc basic_shape() {
+  	soma {pt3dclear() pt3dadd(0, 0, 0, 1) pt3dadd(15, 0, 0, 1)}
+}
+
+objref all
+proc subsets() { local i
+  	objref all
+  	all = new SectionList()
+    	soma all.append()
+
+}
+
+public current_balance
+proc current_balance() {
+
+		forsec all {
+			v = Vrest
+		}
+}
+proc geom() {
+  	forsec all {  }
+  	soma {  L =16.388153   diam = L }
+}
+
+external lambda_f
+proc geom_nseg() {
+  	forsec all { 
+		nseg = 1 // int((L/(0.1*lambda_f(100))+.9)/2)*2 + 1  
+	}
+}
+
+proc biophys() {
+	
+	soma {
+		insert ichan2
+		gnatbar_ichan2 = 0.146388  		// 0.12 //original 0.030 to .055 
+		gkfbar_ichan2 = 0.026664 		//original 0.015
+		gl_ichan2 =  0.001061 
+		cm=1
+	} 
+	forsec all {
+		insert ccanl
+		catau_ccanl = 10		// Time constant for decay of intracellular Ca2+
+		caiinf_ccanl = 5.e-6		// Steady-state intracellular Ca2+ concentration
+	
+		insert borgka
+		gkabar_borgka = 0.004716 		// A-type K+ conductance
+
+		Ra = 100			// 31.3 +/- 10.9
+		enat = 55
+		ekf = -90
+		ek = -90
+		elca = 130
+		el_ichan2 = -65			//-60.06
+		cao_ccanl = 2
+	} 					// make catau slower70e-3 	cao=2 cai=50.e-6
+}
+
+public setParam
+proc setParam() {
+	soma {
+		gnatbar_ichan2 = $1
+		gkfbar_ichan2 = $2
+		gl_ichan2 = $3
+		gkabar_borgka = $4
+		// Ra = $5
+		L = $5
+		diam = $5
+	}
+}
+
+public stim
+objref stim_sm, stim
+
+proc stims () {
+	stim = new List()	
+	soma stim_sm = new IClamp(0.5)
+	stim_sm.del = 10
+	stim_sm.dur = 10
+	stim_sm.amp = 0	
+	stim.append(stim_sm)
+}
+
+obfunc connect2target() { localobj nc //$o1 target point process, optional $o2 returned NetCon
+  	soma nc = new NetCon(&v(1), $o1)
+  	nc.threshold = -10
+  	if (numarg() == 2) { $o2 = nc } // for backward compatibility
+	syn_list.append(nc)
+  	return nc
+}
+
+objref syn_
+proc synapses() {
+  	/* E0 */   soma syn_ = new MyExp2Syn(0.5)  pre_list.append(syn_)	// AMPA		From CA1 Pyramidal cell
+	syn_.tau1 = 3
+	syn_.tau2 = 15
+	syn_.e = 0
+		
+}
+
+func is_art() { return 0 }
+
+endtemplate PV_IN

@@ -1,0 +1,82 @@
+
+objref Cut_vb
+objref Cut_hb1,  Cut_hb2
+objref Cut_g1, Cut_g2, Cut_g3, Cut_g4
+objref Cut_v1, Cut_v2, Cut_v3, Cut_v4, Cut_t
+proc STDP_Cut_init() {
+	P_NUM = 1
+	bStdpFig = false
+	blockGABA = true
+	Cut_vb = new VBox(3)
+	Cut_vb.intercept(1)
+		Cut_hb1 = new HBox(3)
+		Cut_hb1.intercept(1)
+			Cut_g1 = new Graph()
+			Cut_g2 = new Graph()
+		
+		Cut_hb1.intercept(0)	
+		Cut_hb1.map()
+		
+		Cut_hb2 = new HBox(3)
+		Cut_hb2.intercept(1)
+			Cut_g3 = new Graph()
+			Cut_g4 = new Graph()		
+		Cut_hb2.intercept(0)	
+		Cut_hb2.map()		
+	Cut_vb.intercept(0)	//ends intercept mode
+	Cut_vb.map()
+
+	STDP_Cut_run()
+}
+proc STDP_CUT_FILE(){ local i localobj savtrace
+	savtrace = new File()
+	savtrace.wopen($s1)
+	for i=0,$o2.size()-1 {
+		savtrace.printf("%g %g\n", $o2.x(i), $o3.x(i))
+	}
+	savtrace.close()
+}
+
+objref Cut_t, Cut_ca
+proc STDP_Cut_run() {
+	Cut_t = new Vector()
+	Cut_ca = new Vector()
+	
+	Cut_t.record(&t)
+	Cut_ca.record(&CA1PyramidalCell[0].spine.cai(0.5))
+	
+	
+	STDP_Cut_body(10)
+	STDP_Cut_draw(Cut_g1,10)
+	STDP_CUT_FILE("CUT_Ca_10.dat",Cut_t,Cut_ca)
+	
+	STDP_Cut_body(30)
+	STDP_Cut_draw(Cut_g2,6)
+	STDP_CUT_FILE("CUT_Ca_30.dat",Cut_t,Cut_ca)	
+	
+	STDP_Cut_body(-10)
+	STDP_Cut_draw(Cut_g3,1.5)
+	STDP_CUT_FILE("CUT_Ca_-10.dat",Cut_t,Cut_ca)
+	
+	STDP_Cut_body(-30)
+	STDP_Cut_draw(Cut_g4,1.5)
+	STDP_CUT_FILE("CUT_Ca_-30.dat",Cut_t,Cut_ca)	
+	
+	Cut_g1.printfile("CutFig.r10o.eps")
+	Cut_g2.printfile("CutFig.r30o.eps")
+	Cut_g3.printfile("CutFig.o10r.eps")
+	Cut_g4.printfile("CutFig.o30r.eps")
+
+}
+
+proc STDP_Cut_draw() {
+	Cut_ca = Cut_ca.mul(1e3)
+	Cut_ca.line($o1, Cut_t)	
+	$o1.size(1050,1300,0,$2)	
+}
+
+proc STDP_Cut_body() {
+	PAIR_INTERVAL = $1  RunSTDP()
+
+}
+

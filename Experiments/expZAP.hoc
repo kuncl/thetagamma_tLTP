@@ -1,0 +1,150 @@
+begintemplate expZAP
+	external my_run, lib
+	external tstop
+	
+	external cells, iCA1
+	
+	objref cell, zap
+	
+	proc init() {
+		cell = $o1
+		
+		if (cell == lib.nil)  {
+			print "ERR(expZAP,init) Please confirm the cell object "
+		} else {
+			cell.soma zap = new Izap(0.5)
+			zap.f0 = 0
+			zap.f1 = 20
+			zap.del = 1000
+			zap.dur = 15 * 1000 // (ms)
+			// zap.dur = 1 * 1000 // (ms)
+			zap.amp = 0.05 
+			zap.amp = 0.02
+			zap.amp = 0.02
+			
+			tstop = tstop + zap.del + zap. dur +100 //+ ic.del + ic.dur + 50
+
+			
+			gui()
+		}
+	
+		
+	}
+	objref box, boxcmd
+	objref gv, gi
+	external graphList
+	proc gui() { localobj pwm
+		box = new VBox()
+		box.intercept(1)
+			gv = new Graph()
+			gv.addvar("cell.soma.v(0.5)")
+			gv.size(0,tstop,-40,-80)
+			
+			gi = new Graph()
+			gi.addvar("zap.i")
+			gi.size(0,tstop,-1,1)
+			
+			graphList[0].append(gv)
+			graphList[0].append(gi)
+		box.intercept(0)
+		box.map()
+
+		pwm = new PWManager()
+		pwm.hide(pwm.count()-1)
+		
+		boxcmd = new VBox()
+		boxcmd.intercept(1)
+			xpanel("Exp",0)
+				xbutton("Run ZAP", "run_zap()")		
+				xbutton("Tot ZAP", "tot_run()")		
+			xpanel()
+		boxcmd.intercept(0)
+		boxcmd.map()
+		
+	}	
+	objref vsoma, vzap, vt
+	proc record_init() {
+
+		
+		vsoma=new Vector()                                     // record voltage at soma and store in vector vsoma  
+		vsoma.record(&cell.soma.v(0.5))		
+		vzap = new Vector()
+		vzap.record(&zap.i)
+		vt = new Vector()
+		vt.record(&t)
+	}
+	
+	proc record_flush() { localobj fp
+		lib.mkdir($s1)
+		fp=new File()
+		sprint(lib.cmd, "%s/soma.dat", $s1)
+		fp.wopen(lib.cmd)
+		vsoma.printf(fp, "%g\n")
+		fp.close()
+		
+		fp=new File()
+		sprint(lib.cmd, "%s/izap.dat", $s1)
+		fp.wopen(lib.cmd)
+		vzap.printf(fp, "%g\n")
+		fp.close()
+
+		
+		fp=new File()
+		sprint(lib.cmd, "%s/t.dat", $s1)
+		fp.wopen(lib.cmd)
+		vt.printf(fp, "%g\n")
+		fp.close()
+		
+	}
+
+	proc run_zap() {
+		record_init()
+		my_run()
+		record_flush("./output/zap/")
+	}
+	
+	external Simul_ID, updateSimulID
+	public tot_run
+	proc tot_run() { local gm, gh, i,j localobj pl, rmlist, ralist, cmlist, f
+		rmlist = new Vector()
+		// rmlist.append(10000)
+		// rmlist.append(15000)
+		// rmlist.append(20000)
+		// rmlist.append(24000)
+		// rmlist.append(28000)
+		// rmlist.append(40000)
+		rmlist.append(50000)
+		
+		
+		
+
+		for (rmidx = 0; rmidx<rmlist.size();rmidx+=1){
+			for (ra = 50;ra<=400;ra+=50){
+				for (cm = 0.4;cm<=1.6;cm+=0.2){
+					for (gm = 0.0000; gm <= 0.01; gm+=0.0005) {
+						for (gh = 0.00000; gh <=0.0001;gh+=0.000005){
+							cell.biophys_param(rmlist.x(rmidx),ra,cm,gm,gh)
+							record_init()
+							updateSimulID()
+							my_run()
+							
+							sprint(lib.string, "./output/tot/zap_%d", Simul_ID)
+							record_flush(lib.string)
+									
+							sprint(lib.cmd,  "./output/tot/zap_%d", Simul_ID)
+							lib.printjpg(gv,lib.cmd)
+							
+							sprint(lib.string, "./output/tot/zap_%d/param.dat", Simul_ID)
+							f= new File() 
+							f.wopen(lib.string)
+							f.printf("rm\tra\tcm\tgm\tgh\n")
+							f.printf("%f\t%f\t%f\t%f\t%f\n",rmlist.x(rmidx),ra,cm,gm,gh)
+							f.close()
+						}
+					}
+				}
+			}
+		}
+	}
+	
+endtemplate expZAP

@@ -1,0 +1,153 @@
+begintemplate CommonExp
+	external my_run
+	external tstop
+	
+	external cells, iCA3, iCA1, iBC
+	proc init() {
+		gui()
+	
+	}
+	
+	objref box
+	proc gui() {
+		box = new VBox()
+		box.intercept(1)
+			xpanel("Exp",0)
+				xbutton("Resting Potential", "vrest()")		
+				xbutton("CA3 Stim", "CA3Stim()")
+				xbutton("CA1 Stim", "CA1Stim()")
+				xbutton("BC Stim", "BCStim()")
+				xbutton("R_IN", "rin()")
+				xbutton("bpap", "bpap()")
+			xpanel()
+		box.intercept(0)
+		box.map()
+	}
+	
+	
+	objref st		
+	proc CA3Stim() {	local i localobj cell, stim
+		st = new List()
+		
+		// for (i=0;i<10;i+=1) {
+		
+			cell = cells.o(iCA3)
+			cell.soma stim = new IClamp(0.5)
+			stim.del = 10 + i*50
+			stim.dur = 4
+			stim.amp = 0.1
+			
+			st.append(stim)
+		// }
+		tstop = 1000
+		my_run()
+	}
+
+	proc CA1Stim() {	local i localobj cell, stim
+		st = new List()
+		
+		
+			cell = cells.o(iCA1)
+			cell.soma stim = new IClamp(0.5)
+			stim.del = 10 
+			stim.dur = 4
+			stim.amp = 0.05
+			
+			st.append(stim)
+		tstop = 50
+		my_run()
+	}
+	
+	proc BCStim() {	local i localobj cell, stim
+		st = new List()		
+		
+			cell = cells.o(iBC)
+			cell.soma stim = new IClamp(0.5)
+			stim.del = 10 
+			stim.dur = 4
+			stim.amp = 0.1
+			
+			st.append(stim)
+		tstop = 50
+		my_run()
+	}
+	proc vrest() {
+		tstop = 100
+		my_run()		
+	}
+	
+	public rin
+	func rin() { local V2, V1 localobj cell, stim,  vsoma
+		cell = cells.o(iCA1)
+		vsoma=new Vector()                                     // record voltage at soma and store in vector vsoma  
+		vsoma.record(&cell.soma.v(0.5))
+
+		cell.soma stim = new IClamp(0.5)
+		stim.del = 10
+		stim.dur = 50
+		stim.amp = 0.01
+
+
+
+		tstop = stim.del +stim.dur+10//+ ic.del + ic.dur + 50
+		my_run()
+		V2idx  = (stim.del + stim.dur)/dt		
+		V2 = vsoma.x(V2idx)
+
+		V1idx  = (stim.del)/dt
+		V1 = vsoma.x(V1idx)
+		print "InputResistance" , (V2-V1 )/stim.amp
+		return (V2-V1 )/stim.amp
+
+	}
+	
+	objref bpap_g
+	proc bpap(){ local i,j localobj gkalist, stim, vx,vylist, vy,cell, vsoma
+		cell = cells.o(iCA1)
+		bpap_g = new Graph()
+		
+		cell.soma stim = new IClamp(0.5)
+		stim.del = 50
+		stim.dur = 5
+		stim.amp = 0.05
+		
+		gkalist = new Vector()
+		gkalist.append(1)
+		gkalist.append(0)
+		
+		for (i=0;i<gkalist.size();i+=1){
+			cell.gka_set(gkalist.x(i),gkalist.x(i))		
+			access cell.soma
+			distance()
+			vx = new Vector()
+			vx.append(0)
+			vylist = new List()
+			forsec cell.all_apicals { 
+				for (x) if (x>0 && x<1) {
+					
+					vx.append(distance(x))
+					vy= new Vector()
+					vy.record(&v(x))
+					vylist.append(vy)
+				}
+			}
+			vsoma = new Vector()
+			vsoma.record(&cell.soma.v(0.5))
+			
+			tstop = 100
+			my_run()
+			
+			vy = new Vector()
+			vy.append(vsoma.max()+60)
+			for(j=0;j<vylist.count();j+=1){
+				vy.append(vylist.o(j).max()+60)
+			}
+			vy.line(bpap_g,vx,i+2,1)
+			vy.mark(bpap_g,vx,"O",5,i+2,1)
+
+		}
+		
+		
+		
+	}
+endtemplate CommonExp

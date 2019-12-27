@@ -1,0 +1,69 @@
+
+objref g_df, g_ic
+proc analy_inhb_init() {
+	P_NUM = 0
+	blockGABA = false
+
+	g_df = new Graph()
+	g_ic = new Graph() 
+	
+	g_df.label("Driving Force (mV)")
+	g_ic.label("Driving Force * maximal Conductance (mV*uS)")
+	
+	graphList[0].append(g_df)
+	graphList[0].append(g_ic)
+	
+	g_df.exec_menu("Keep Lines")
+	g_ic.exec_menu("Keep Lines")
+	
+	
+	analy_inhb_draw("10 nS", 10, 2)
+	analy_inhb_draw("20 nS", 20, 3)
+	analy_inhb_draw("30 nS", 30, 4)
+
+	g_df.size(0,tstop,0,20)
+	g_ic.size(0,tstop,0,0.6)
+	
+	graphList[0].remove(0)
+	graphList[0].remove(0)
+	analy_inhb_amp()
+}
+
+objref g_ac
+proc analy_inhb_amp() { local i localobj vv, xx
+	g_df.addexpr("(CA1PyramidalCell[0].soma.v(0.5)- (-70))",0,0)
+	g_ic.addexpr("weight_BC_CA1*(CA1PyramidalCell[0].soma.v(0.5)- (-70))",0,0)
+	
+	g_ac = new Graph()
+	vv = new Vector()
+	xx = new Vector()
+	
+	for (i=0;i<=30; i= i+1){
+		weight_BC_CA1 = i * 1e-3
+		IPSP_Fig()
+		vv.append(oIPSP.ampV)
+		xx.append(i)
+	}
+	
+	vv.mark(g_ac, xx, "o")
+	vv.line(g_ac, xx, 1,2)
+	g_ac.size(0,30,0,10)
+}
+
+proc analy_inhb_draw() {
+	color_code = $3
+	weight_BC_CA1 = $2 * 1e-3
+	
+	g_df.addexpr($s1, "(CA1PyramidalCell[0].soma.v(0.5)- (-70))",color_code,2)
+	g_ic.addexpr($s1, "weight_BC_CA1*(CA1PyramidalCell[0].soma.v(0.5)- (-70))",color_code,2)
+	
+	g_df.begin()
+	g_ic.begin()
+	
+	IPSP_Fig()
+	
+	g_df.flush()
+	g_ic.flush()
+	doNotify()
+
+}

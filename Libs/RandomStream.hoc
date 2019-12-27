@@ -1,0 +1,72 @@
+random_stream_offset_ = 1000
+
+begintemplate RandomStream
+
+public r, getrand, start, stream
+external random_stream_offset_
+objref r
+proc init() { 
+	stream = getseed()
+	r = new Random()
+	print "Inti"
+}
+
+func cut() { local val, len,size, i, fact
+	// $1, value $2, length, $3, size
+	val = $1
+	len = $2
+	size = $3
+	
+	if (size > len) {
+		size = len
+	}
+	val = int(val * (10^len))
+	
+	for (i=0;i<=(len-size);i=i+1) {
+		fact = (len-i)
+		val = val - int(val * 10^(-1*fact)) * 10^(fact)
+	}	
+	return val
+}
+
+func getseed() {	localobj fp 
+	fp = new File()
+	rseed = 999
+	if (fp.ropen("RandomSeed.dat") == 1) {
+		if (fp.eof() != 1) {
+			rseed = fp.scanvar()+1
+		}
+	}
+	fp.close()
+	
+	startsw()
+	for i=1,(1000000 + rseed) { x = sin(.2) }
+	x = stopsw()
+	stream = cut(x,10,3) + rseed
+	
+	if (stream < 0) {
+		getseed()
+	}
+	
+	return stream
+}
+func getrand() { local rnd
+	rnd = newseed()
+	return rnd
+}
+
+func newseed() { local new_r localobj fp
+	getseed()
+	new_r =  r.MCellRan4(stream  + 1) % random_stream_offset_
+	fp = new File()
+	if (fp.wopen("RandomSeed.dat")== 1) {
+		fp.printf("%d",new_r)
+	}
+	fp.close()
+	return new_r
+}
+func repick() {
+	return r.repick()
+}
+endtemplate RandomStream
+
